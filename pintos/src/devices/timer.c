@@ -24,6 +24,14 @@ static int64_t ticks;
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
 
+/* list of waiting threads */
+static struct list waiting_queue;
+
+
+static bool less_than_func(const struct list_elem *a, 
+	const struct list_elem *b, void* aux UNUSED);
+
+
 static intr_handler_func timer_interrupt;
 static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
@@ -37,6 +45,8 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+
+  list_init(&waiting_queue);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -66,6 +76,20 @@ timer_calibrate (void)
   printf ("%'"PRIu64" loops/s.\n", (uint64_t) loops_per_tick * TIMER_FREQ);
 }
 
+/* Compares the keys stored in elements a and b. 
+   Returns true if a is less than b, false if a is greater than or equal to b.  
+*/
+bool
+less_than_func (const struct list_elem *a, 
+	const struct list_elem *b, void *aux UNUSED) {
+
+	const struct thread *first = list_entry(a, struct thread, elem);
+	const struct thread *second = list_entry(b, struct thread, elem);
+
+	return first->wakeup_time < second->wakeup_time;
+
+}
+
 /* Returns the number of timer ticks since the OS booted. */
 int64_t
 timer_ticks (void) 
@@ -90,10 +114,22 @@ void
 timer_sleep (int64_t ticks) 
 {
   int64_t start = timer_ticks ();
-
+  int64_t sleep_end_at = start + ticks;
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+
+  /* Instead of busying waiting, we will setup a semaphores
+     for the current thread and put it into the waiting queue 
+  */
+
+  struct thread *cur = thread_current();
+  cur->wakeup_time = sleep_end_at;
+  intr_disable();  
+  list_insert_ordered(&waiting_queue, &cur->elem, less_than_func, NULL);
+  intr_enable();
+  sema_down(&cur->t_sema); 
+
+
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -172,6 +208,16 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+
+  /* Weake up the waiting queue */
+
+  if (!list_empty(&waiting_queue)) {
+  	struct thread *cur = list_entry(list_front(&waiting_queue), struct thread, elem);
+  	if (cur->wakeup_time >= ticks) {
+  		list_pop_front(&waiting_queue);
+  		sema_up(&cur->t_sema);  		  		
+  	} 
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
