@@ -83,8 +83,8 @@ bool
 less_than_func (const struct list_elem *a, 
 	const struct list_elem *b, void *aux UNUSED) {
 
-	const struct thread *first = list_entry(a, struct thread, elem);
-	const struct thread *second = list_entry(b, struct thread, elem);
+	const struct thread *first = list_entry(a, struct thread, t_elem);
+	const struct thread *second = list_entry(b, struct thread, t_elem);
 
 	return first->wakeup_time < second->wakeup_time;
 
@@ -121,11 +121,12 @@ timer_sleep (int64_t ticks)
      for the current thread and put it into the waiting queue 
   */
 
+
   struct thread *cur = thread_current();
   cur->wakeup_time = sleep_end_at;
-  intr_disable();  
-  list_insert_ordered(&waiting_queue, &cur->elem, less_than_func, NULL);
-  intr_enable();
+  list_insert_ordered(&waiting_queue, &cur->t_elem, less_than_func, NULL);
+
+
   sema_down(&cur->t_sema); 
 
 
@@ -209,14 +210,18 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
 
+  if (list_empty(&waiting_queue))
+  	return;
   /* Weake up the waiting queue */
+  struct list_elem *e;
 
-  if (!list_empty(&waiting_queue)) {
-  	struct thread *cur = list_entry(list_front(&waiting_queue), struct thread, elem);
-  	if (cur->wakeup_time >= ticks) {
-  		list_pop_front(&waiting_queue);
-  		sema_up(&cur->t_sema);  		  		
+  for (e = list_begin(&waiting_queue); e != list_end(&waiting_queue); e = list_next(e)) {
+  	struct thread *cur = list_entry(e, struct thread, t_elem);
+  	if (cur->wakeup_time > ticks) {
+  		break;
   	} 
+  	sema_up(&cur->t_sema);  
+  	list_remove(&cur->t_elem);	
   }
 }
 
