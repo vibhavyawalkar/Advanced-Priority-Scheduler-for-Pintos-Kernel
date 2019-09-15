@@ -92,10 +92,11 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /* List element. */
+    struct list_elem elem;              /* List element */
 
-    struct semaphore t_sema;
-    int64_t wakeup_time;                /* 64bit integer - wakeup time */
+    struct semaphore t_sema;            /* semaphore for putting thread to sleep and wake them up */
+    struct list_elem t_elem;            /* list element for waiting queue */
+    int64_t wakeup_time;                /* 64bit integer - record the wakeup time */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
