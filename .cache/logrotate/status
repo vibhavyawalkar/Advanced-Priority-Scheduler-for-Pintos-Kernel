@@ -1,0 +1,14 @@
+logrotate state -- version 2
+"/home/os-class/.cache/upstart/window-stack-bridge.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/gnome-keyring-ssh.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/upstart-event-bridge.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/hud.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/gnome-keyring.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/update-notifier-crash-_var_crash__usr_bin_compiz.1000.crash.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/ssh-agent.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/indicator-sound.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/dbus.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/unity-panel-service.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/unity7.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/gpg-agent.log" 2019-9-28-15:0:0
+"/home/os-class/.cache/upstart/unity-settings-daemon.log" 2019-9-28-15:0:0
