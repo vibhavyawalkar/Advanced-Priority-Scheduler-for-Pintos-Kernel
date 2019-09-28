@@ -1,2 +1,0 @@
-grep: /home/os-class/.config/autostart/gnome-keyring-ssh.desktop: No such file or directory
-** Message: couldn't access control socket: /run/user/1000/keyring/control: No such file or directory
