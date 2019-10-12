@@ -66,6 +66,20 @@ timer_calibrate (void)
   printf ("%'"PRIu64" loops/s.\n", (uint64_t) loops_per_tick * TIMER_FREQ);
 }
 
+/* Compares the keys stored in elements a and b. 
+   Returns true if a is less than b, false if a is greater than or equal to b.  
+*/
+bool
+less_than_func (const struct list_elem *a, 
+	const struct list_elem *b, void *aux UNUSED) {
+
+	const struct thread *first = list_entry(a, struct thread, t_elem);
+	const struct thread *second = list_entry(b, struct thread, t_elem);
+
+	return first->wakeup_time < second->wakeup_time;
+
+}
+
 /* Returns the number of timer ticks since the OS booted. */
 int64_t
 timer_ticks (void) 
@@ -90,7 +104,19 @@ void
 timer_sleep (int64_t ticks) 
 {
   int64_t start = timer_ticks ();
+  int64_t sleep_end_at = start + ticks;
+  ASSERT (intr_get_level () == INTR_ON);
 
+  /* Instead of busying waiting, we will setup a semaphores
+     for the current thread and put it into the waiting queue 
+  */
+
+  struct thread *cur = thread_current();
+  cur->wakeup_time = sleep_end_at;
+  list_insert_ordered(&waiting_queue, &cur->t_elem, less_than_func, NULL);
+
+  sema_down(&cur->t_sema);
+  
   ASSERT (intr_get_level () == INTR_ON);
   while (timer_elapsed (start) < ticks) 
     thread_yield ();
@@ -172,6 +198,20 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  
+  if (list_empty(&waiting_queue))
+  	return;
+  /* Weake up the waiting queue */
+  struct list_elem *e;
+
+  for (e = list_begin(&waiting_queue); e != list_end(&waiting_queue); e = list_next(e)) {
+  	struct thread *cur = list_entry(e, struct thread, t_elem);
+  	if (cur->wakeup_time > ticks) {
+  		break;
+  	} 
+  	sema_up(&cur->t_sema);  
+  	list_remove(&cur->t_elem);	
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
