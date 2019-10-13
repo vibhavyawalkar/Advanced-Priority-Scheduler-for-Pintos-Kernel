@@ -240,7 +240,7 @@ void list_sort (struct list *,list_less_func *, void *aux);
 
 */
 bool
-compare_list_element_priority (const struct list_elem *first_entry, const struct list_elem *second_entry, void *aux UNUSED)
+compare_list_element_priority (const struct list_elem *first_entry, const struct list_elem *second_entry, void *aux)
 {
   (void)aux;
   struct thread *tfirst_entry = list_entry(first_entry, struct thread, elem);
@@ -373,26 +373,31 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
-static int
- highest_thread_priority (void)
- {
-   struct list_elem *front = list_front (&ready_list);
-   if(front == NULL) return PRI_MIN;
-
-    struct thread *t = list_entry (front, struct thread, elem);
-   return t->priority;
- }
+/* Since we return highest priority of a thread present in ready queue, we should disable interrupts when we call this function to avoid race conditions.*/
+int
+highest_priority_in_list (void)
+{
+  struct list_elem *front = list_front (&ready_list);
+  if(front != NULL)
+  {
+    struct thread *hp_thread = list_entry (front, struct thread, elem);
+    return hp_thread->priority;
+  }
+  return PRI_MIN;
+}
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority)
 {
   thread_current ()->priority = new_priority;
-
-  if (highest_thread_priority () > new_priority)
+  enum intr_level old_level;
+  old_level = intr_disable ();
+  if (highest_priority_in_list () > new_priority)
   {
    thread_yield ();
  }
+ intr_set_level (old_level);
 }
 
 /* Returns the current thread's priority. */
@@ -519,6 +524,13 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  
+  //initialize priority data
+  t->practical_priority = priority;
+  t->resource_waiting = NULL;
+  list_init(&t->locks_held)
+
+
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
