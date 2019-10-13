@@ -240,7 +240,10 @@ compare_list_element_priority (const struct list_elem *first_entry, const struct
   (void)aux;
   struct thread *tfirst_entry = list_entry(first_entry, struct thread, elem);
   struct thread *tsecond_entry = list_entry(second_entry, struct thread, elem);
-  tfirst_entry->priority > tsecond_entry->priority ? return true : reurn false;
+  if (tfirst_entry->priority > tsecond_entry->priority){
+    return true
+  }
+  return false;
 }
 
 void
@@ -268,6 +271,7 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
+  update_ready_list();
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
