@@ -200,6 +200,11 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  /* Run immediately if higher priority */
+  if (t->priority > thread_get_priority ())
+  {
+    thread_yield();
+  }
 
   return tid;
 }
@@ -235,22 +240,20 @@ void list_sort (struct list *,list_less_func *, void *aux);
 
 */
 bool
-compare_list_element_priority (const struct list_elem *first_entry, const struct list_elem *second_entry, void *aux)
+compare_list_element_priority (const struct list_elem *first_entry, const struct list_elem *second_entry, void *aux UNUSED)
 {
   (void)aux;
   struct thread *tfirst_entry = list_entry(first_entry, struct thread, elem);
   struct thread *tsecond_entry = list_entry(second_entry, struct thread, elem);
-  if (tfirst_entry->priority > tsecond_entry->priority){
-    return true
-  }
-  return false;
+  return tfirst_entry->priority > tsecond_entry->priority;
 }
-
+/*
 void
 update_ready_list (void)
 {
   list_sort(&ready_list, (list_less_func *) &compare_list_element_priority, NULL);
 }
+*/
 
 
 /* Transitions a blocked thread T to the ready-to-run state.
@@ -270,8 +273,9 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
-  update_ready_list();
+  //list_push_back (&ready_list, &t->elem);
+  //update_ready_list();
+  list_insert_ordered(&ready_list, &t->elem,(list_less_func *) &compare_list_element_priority,NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -343,8 +347,9 @@ thread_yield (void)
   old_level = intr_disable ();
   if (cur != idle_thread)
     {
-      list_push_back (&ready_list, &cur->elem);
-      update_ready_list();
+      //list_push_back (&ready_list, &cur->elem);
+      //update_ready_list();
+      list_insert_ordered(&ready_list, &cur->elem,(list_less_func *) &compare_list_element_priority,NULL);
     }
   cur->status = THREAD_READY;
   schedule ();
@@ -368,11 +373,26 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+static int
+ highest_thread_priority (void)
+ {
+   struct list_elem *front = list_front (&ready_list);
+   if(front == NULL) return PRI_MIN;
+
+    struct thread *t = list_entry (front, struct thread, elem);
+   return t->priority;
+ }
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority)
 {
   thread_current ()->priority = new_priority;
+
+  if (highest_thread_priority () > new_priority)
+  {
+   thread_yield ();
+ }
 }
 
 /* Returns the current thread's priority. */
