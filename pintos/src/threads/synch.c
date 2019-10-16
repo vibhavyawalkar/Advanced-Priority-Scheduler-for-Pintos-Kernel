@@ -71,7 +71,7 @@ sema_down (struct semaphore *sema)
       //list_push_back (&sema->waiters, &thread_current ()->elem);
 
       //ordering semaphore waiters list by priority for easy release of highest priority THREAD
-      list_insert_ordered(&sema->waiters, &thread_current, (list_less_func *) &compare_list_element_priority, NULL);
+      list_insert_ordered(&sema->waiters, &thread_current ()->elem, (list_less_func *) &compare_list_element_priority, NULL);
 
       thread_block ();
     }

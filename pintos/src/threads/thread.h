@@ -24,6 +24,11 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/* Thread Nice values. */
+#define NICE_MIN -20      /* Lowest nice value. */
+#define NICE_DEFAULT 0    /* Default nice value. */
+#define NICE_MAX 20       /* Highest nice value. */
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -88,6 +93,8 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int nice;                           /* Nice value of the thread */
+    int recent_cpu;                     /* Recent CPU value of the thread */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
@@ -105,7 +112,7 @@ struct thread
   //Lock that this thread is waiting on, It's null if the list is empty.
   struct lock *resource_waiting;
   // List of locks held by the thread and waited by others.
-  struct list lock_held;
+  struct list locks_held;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
@@ -146,6 +153,7 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+void calculate_thread_priority(void);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
