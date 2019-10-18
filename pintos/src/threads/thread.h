@@ -102,6 +102,15 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
+/*priority data*/
+
+  //The current priority of a thread considering priorities donated by other threads
+  int practical_priority;
+  //Lock that this thread is waiting on, It's null if the list is empty.
+  struct lock *resource_waiting;
+  // List of locks held by the thread and waited by others.
+  struct list locks_held;
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
@@ -130,12 +139,21 @@ const char *thread_name (void);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
+//functions to ensure priority scheduling, by sorting ready list.
+void update_ready_list (void);
+bool compare_list_element_priority (const struct list_elem *first_entry, const struct list_elem *second_entry, void *aux);
+int highest_priority_in_list (void);
+
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+
+//functions to compute practical priority based on donated priority
+int thread_get_practical_priority (struct thread *t);
+void thread_set_practical_priority (struct thread *current_thread, int max_priority);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
