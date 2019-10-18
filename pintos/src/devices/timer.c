@@ -194,9 +194,27 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+
+  // Perform calculations based on the timer ticks for mlfqs
+  if(thread_mlfqs) {
+    // Increment the recent cpu of the running thread by 1 for every tick
+    increment_recent_cpu();
+
+    // Every 4th tick recalculate the priority of each thread
+    if(ticks % 4 == 0) {
+      //calculate_priority_for_each_thread();
+     }
+
+    //For every second, we calculate the system load_avg and recent_cpu for each thread
+    if(ticks % TIMER_FREQ == 0) {
+      calculate_load_avg();
+      //calculate_recent_cpu_for_each_thread();
+    }
+  }
+
   if (list_empty(&waiting_queue))
   	return;
-  /* Weake up the waiting queue */
+  /* Wake up the waiting queue */
   struct list_elem *e;
 
   for (e = list_begin(&waiting_queue); e != list_end(&waiting_queue); e = list_next(e)) {
