@@ -232,7 +232,7 @@ lock_acquire (struct lock *lock)
 
       /* Donate priority to holders of lock*/
      int max_donator_priority = thread_get_practical_priority (lock->holder);
-     if (current_thread->practical_priority > max_donator_priority && strcmp(thread_current()->name, "idle") != 0)
+     if (current_thread->practical_priority > max_donator_priority)
        thread_set_practical_priority (lock->holder, current_thread->practical_priority);
    }
   sema_down (&lock->semaphore);
