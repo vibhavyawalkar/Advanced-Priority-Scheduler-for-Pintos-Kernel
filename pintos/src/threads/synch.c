@@ -123,8 +123,9 @@ sema_up (struct semaphore *sema)
     list_remove(max_item);
     struct thread *t = list_entry(max_item, struct thread, elem);
     thread_unblock (t);
-    if (t->practical_priority > thread_current()->practical_priority)
+    if (t->practical_priority > thread_current()->practical_priority && strcmp(thread_current()->name, "idle") != 0){
       thread_yield();
+    }
   }
   intr_set_level (old_level);
   /*{
@@ -231,7 +232,7 @@ lock_acquire (struct lock *lock)
 
       /* Donate priority to holders of lock*/
      int max_donator_priority = thread_get_practical_priority (lock->holder);
-     if (current_thread->practical_priority > max_donator_priority)
+     if (current_thread->practical_priority > max_donator_priority && strcmp(thread_current()->name, "idle") != 0)
        thread_set_practical_priority (lock->holder, current_thread->practical_priority);
    }
   sema_down (&lock->semaphore);
