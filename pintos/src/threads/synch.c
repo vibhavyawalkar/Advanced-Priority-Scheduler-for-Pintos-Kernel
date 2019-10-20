@@ -67,7 +67,10 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0)
     {
-      list_push_back (&sema->waiters, &thread_current()->elem);
+      if(!thread_mlfqs)
+        list_push_back (&sema->waiters, &thread_current()->elem);
+      else
+        list_insert_ordered(&sema->waiters, &thread_current()->elem, (list_less_func *) &compare_list_element_priority_mlfqs, NULL);
       thread_block ();
     }
   sema->value--;
@@ -229,30 +232,30 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   if(!thread_mlfqs) {
-  enum intr_level old_level;
-  old_level = intr_disable ();
-  struct thread *current_thread = thread_current ();
-  //int max_donator_priority;
+    enum intr_level old_level;
+    old_level = intr_disable ();
+    struct thread *current_thread = thread_current ();
+    //int max_donator_priority;
 
-    /* Priority Donation: donate our priority if necessary */
-   if (lock->holder != NULL)
-   {
-     /* Update thread's resource_waiting lock to this*/
-     current_thread->resource_waiting = lock;
+      /* Priority Donation: donate our priority if necessary */
+     if (lock->holder != NULL)
+     {
+       /* Update thread's resource_waiting lock to this*/
+       current_thread->resource_waiting = lock;
 
-      /* Donate priority to holders of lock*/
-     int max_donator_priority = thread_get_practical_priority (lock->holder);
-     if (current_thread->practical_priority > max_donator_priority)
-       thread_set_practical_priority (lock->holder, current_thread->practical_priority);
-   }
-  sema_down (&lock->semaphore);
-  lock->holder = current_thread;
-  //Since current thread no longer waiting on this.
-  current_thread->resource_waiting = NULL;
-  //add to list of locks held by current_thread
-  list_push_back(&current_thread->locks_held, &lock->lock_elem);
+        /* Donate priority to holders of lock*/
+       int max_donator_priority = thread_get_practical_priority (lock->holder);
+       if (current_thread->practical_priority > max_donator_priority)
+         thread_set_practical_priority (lock->holder, current_thread->practical_priority);
+     }
+    sema_down (&lock->semaphore);
+    lock->holder = current_thread;
+    //Since current thread no longer waiting on this.
+    current_thread->resource_waiting = NULL;
+    //add to list of locks held by current_thread
+    list_push_back(&current_thread->locks_held, &lock->lock_elem);
 
-  intr_set_level (old_level);
+    intr_set_level (old_level);
   } else { // End if(!thread_mlfqs)
     sema_down(&lock->semaphore);
     lock->holder = thread_current();

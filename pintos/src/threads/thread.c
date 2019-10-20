@@ -561,11 +561,12 @@ void
 calculate_thread_priority(struct thread * t, void *aux UNUSED)
 {
 
-  if(strcmp(thread_current ()->name, "idle") == 0) return;
-  t->priority = PRI_MAX - (convert_fp_to_integer_nearest(div_fp_by_int(t->recent_cpu,4))) - (t->nice*2);
-  if(t->priority < PRI_MIN) t->priority = PRI_MIN;
-  if(t->priority > PRI_MAX) t->priority = PRI_MAX;
-  // If the thread priority above is no the highest priority thread, the it yields
+  if(strcmp(thread_current ()->name, "idle") != 0) {
+    t->priority = PRI_MAX - (convert_fp_to_integer_nearest(div_fp_by_int(t->recent_cpu,4))) - (t->nice*2);
+    if(t->priority < PRI_MIN) t->priority = PRI_MIN;
+    if(t->priority > PRI_MAX) t->priority = PRI_MAX;
+    // If the thread priority above is no the highest priority thread, the it yields
+  }
 }
 
 void yield_max_priority_thread(void)
@@ -579,9 +580,10 @@ void yield_max_priority_thread(void)
       intr_yield_on_return();
       return;
     }
+  } else {
+    if(thread_current()->priority < t->priority)
+    thread_yield();
   }
-  /*if(thread_current()->priority < t->priority)
-    thread_yield();  */
 }
 
 void increment_recent_cpu(void)
