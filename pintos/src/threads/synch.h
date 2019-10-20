@@ -32,7 +32,7 @@ void lock_release (struct lock *);
 bool lock_held_by_current_thread (const struct lock *);
 
 //compare two semaphore elements's practical priority
-bool compare_semaphore_element_priority (const struct list_elem *first_elem, const struct list_elem *second_elem, void *aux)
+bool compare_semaphore_element_priority (const struct list_elem *first_elem, const struct list_elem *second_elem, void *aux);
 
 /* Condition variable. */
 struct condition
