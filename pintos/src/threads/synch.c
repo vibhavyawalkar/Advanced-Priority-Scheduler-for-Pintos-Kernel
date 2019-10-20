@@ -110,46 +110,31 @@ sema_up (struct semaphore *sema)
   enum intr_level old_level;
 
   ASSERT (sema != NULL);
-  //possible race condition??...
+
   old_level = intr_disable ();
 
   if(!thread_mlfqs) {
     sema->value++;
-    //int current_thread_priority = thread_current()->practical_priority;
-    //struct list_elem *max_priority_item;
-    //sema->value++;
-    if (!list_empty (&sema->waiters))
+    int current_thread_priority = thread_current()->practical_priority;
+    struct list_elem *max_priority_item;
+    struct thread *max_priority_thread;
+    if (list_empty (&sema->waiters)) return;
+    max_priority_item = list_max(&sema->waiters, compare_list_element_priority, NULL);
+    list_remove(max_priority_item);
+    max_priority_thread = list_entry(max_priority_item, struct thread, elem);
+    thread_unblock (max_priority_thread);
+    if ( max_priority_thread->practical_priority > current_thread_priority && strcmp( thread_current()->name , "idle")!= 0)
     {
-      struct list_elem *max_item = list_max(&sema->waiters, compare_list_element_priority, NULL);
-      list_remove(max_item);
-      struct thread *t = list_entry(max_item, struct thread, elem);
-      thread_unblock (t);
-  
-      if (t->practical_priority > thread_current()->practical_priority && strcmp(thread_current()->name, "idle") != 0){
-        thread_yield();
-      }
+      thread_yield();
     }
   } else { 
    // Code for multi level feedback queue
      if(!list_empty (&sema->waiters))
       thread_unblock(list_entry(list_pop_front(&sema->waiters),struct thread, elem));
      sema->value++;
-  }
+   }
 
   intr_set_level (old_level);
-  /*{
-      //thread_unblock (list_entry (list_pop_front (&sema->waiters),struct thread, elem));
-      struct list_elem *max_priority_item = list_max (&sema->waiters, compare_list_element_priority, NULL);
-      list_remove(max_priority_item);
-      struct thread *max_item_thread = list_entry(max_priority_item, struct thread, elem);
-      thread_unblock(max_item_thread);
-      if(thread_current()->practical_priority < max_item_thread->practical_priority)
-      {
-        thread_yield();
-      }
-  }
-
-  intr_set_level (old_level);*/
 }
 
 static void sema_test_helper (void *sema_);
@@ -232,24 +217,25 @@ lock_acquire (struct lock *lock)
   enum intr_level old_level;
   old_level = intr_disable ();
   struct thread *current_thread = thread_current ();
-  //int max_donator_priority;
+  int max_donator_priority;
 
-    /* Priority Donation: donate our priority if necessary */
-   if (lock->holder != NULL)
-   {
-     /* Update thread's resource_waiting lock to this*/
-     current_thread->resource_waiting = lock;
+  if (lock->holder != NULL)
+  {
+    /* Update thread's resource_waiting lock to this*/
+    current_thread->resource_waiting = lock;
 
-      /* Donate priority to holders of lock*/
-     int max_donator_priority = thread_get_practical_priority (lock->holder);
-     if (current_thread->practical_priority > max_donator_priority)
-       thread_set_practical_priority (lock->holder, current_thread->practical_priority);
+    /* Donate priority to holders of lock*/
+    max_donator_priority = thread_get_practical_priority (lock->holder);
+    if (current_thread->practical_priority > max_donator_priority)
+    {
+      thread_set_practical_priority (lock->holder, current_thread->practical_priority);
+    }
    }
+  
   sema_down (&lock->semaphore);
   lock->holder = current_thread;
-  //Since current thread no longer waiting on this.
+
   current_thread->resource_waiting = NULL;
-  //add to list of locks held by current_thread
   list_push_back(&current_thread->locks_held, &lock->lock_elem);
 
   intr_set_level (old_level);
@@ -276,10 +262,9 @@ lock_try_acquire (struct lock *lock)
   success = sema_try_down (&lock->semaphore);
   if (success)
   {
-    struct thread *current_thread = thread_current();
-    lock->holder = current_thread;
+    lock->holder = thread_current();
     if(!thread_mlfqs)
-      list_push_back(&current_thread->locks_held, &lock->lock_elem);
+      list_push_back(&thread_current()->locks_held, &lock->lock_elem);
   }
   return success;
 }
@@ -313,7 +298,6 @@ lock_release (struct lock *lock)
       thread_set_practical_priority(current_thread,new_priority);
     }
     sema_up (&lock->semaphore);
-  
     intr_set_level(old_level);
   } else {
     lock->holder = NULL;
