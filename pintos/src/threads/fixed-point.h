@@ -3,8 +3,13 @@
 
 #include <stdint.h>
 
+#define P 17
+#define Q 14
+#define F 1 << (Q)
+
 /*32 bit fixed point representation with 17 bit for real part and 14 bit for fractional part and 1 bit as signed bit */
 typedef int32_t fp_t;
+
 
 fp_t convert_to_fp(int n);
 
