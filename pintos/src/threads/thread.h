@@ -148,8 +148,6 @@ void update_ready_list (void);
 //The below function compares practical priority, hence not used for mlfqs
 bool compare_list_element_priority (const struct list_elem *first_entry, const struct list_elem *second_entry, void *aux);
 bool compare_list_element_priority_mlfqs (const struct list_elem *first_entry, const struct list_elem *second_entry, void *aux);
-//compare two semaphore elements's practical priority
-bool compare_semaphore_element_priority (const struct list_elem *first_elem, const struct list_elem *second_elem, void *aux)
 int highest_priority_in_list (void);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
