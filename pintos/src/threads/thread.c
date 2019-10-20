@@ -114,10 +114,10 @@ thread_start (void)
   sema_init (&idle_started, 0);
   thread_create ("idle", PRI_MIN, idle, &idle_started);
 
-  load_avg = convert_to_fp(0);
   /* Start preemptive thread scheduling. */
   intr_enable ();
 
+  load_avg = convert_to_fp(0);
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
 }
@@ -364,7 +364,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread)
-  list_push_back (&ready_list, &cur->elem);
+    list_push_back (&ready_list, &cur->elem);
   //list_insert_ordered(&ready_list, &cur->elem,(list_less_func *) &compare_list_element_priority,NULL);
   cur->status = THREAD_READY;
   schedule ();
@@ -465,7 +465,19 @@ thread_get_priority (void)
   return priority;
 }
 
+void
 calculate_priority_for_each_thread()
+{
+  struct list_elem *e;
+  for (e = list_begin(&all_list); e != list_end(&all_list);
+       e = list_next(e))
+  {
+    struct thread *t = list_entry(e, struct thread, allelem);
+
+    calculate_thread_priority(t, NULL);
+  }
+}
+
 /*   */
 void
 calculate_recent_cpu_for_each_thread()
@@ -598,15 +610,19 @@ void yield_max_priority_thread(void)
 
 void increment_recent_cpu(void)
 {
-  add_int_to_fp(thread_current ()->recent_cpu, 1);
+  if (thread_current() != idle_thread) {
+    thread_current()->recent_cpu = add_int_to_fp(thread_current ()->recent_cpu, 1);
+  }
 }
 
 void calculate_recent_cpu(struct thread *t, void *aux UNUSED)
 {
-  fp_t coeff_numerator = mul_fp_by_int(load_avg, 2);
-  fp_t coeff_denominator = add_int_to_fp(coeff_numerator, 1);
-  fp_t coefficient = div_fp(coeff_numerator, coeff_denominator);
-  t->recent_cpu = add_int_to_fp(mul_fp(coefficient, t->recent_cpu), t->nice);
+  if (t != idle_thread) {
+    fp_t coeff_numerator = mul_fp_by_int(load_avg, 2);
+    fp_t coeff_denominator = add_int_to_fp(coeff_numerator, 1);
+    fp_t coefficient = div_fp(coeff_numerator, coeff_denominator);
+    t->recent_cpu = add_int_to_fp(mul_fp(coefficient, t->recent_cpu), t->nice);   
+  }
 }
 
 void calculate_recent_cpu_foreach(void)
@@ -619,11 +635,11 @@ void calculate_load_avg(void)
   int ready_threads = list_size(&ready_list);
 
   // Adding the current running thread to the count
-  if(strcmp(thread_current()->name ,"idle") != 0) {
+  if (thread_current() != idle_thread)
     ready_threads +=1;
-  }
+  load_avg = add_fp(mul_fp(div_fp_by_int(convert_to_fp(59), 60), load_avg), 
+    mul_fp_by_int(div_fp_by_int(convert_to_fp(1),60), ready_threads));
 
-  load_avg = div_fp_by_int(mul_fp_by_int(convert_to_fp(59), load_avg), 60) + mul_fp_by_int(div_fp_by_int(convert_to_fp(1), 60), ready_threads);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.

@@ -174,4 +174,5 @@ void calculate_recent_cpu(struct thread *t, void *aux);
 void calculate_recent_cpu_foreach(void);
 void yield_max_priority_thread(void);
 void calculate_recent_cpu_for_each_thread(void);
+void calculate_priority_for_each_thread(void);
 #endif /* threads/thread.h */

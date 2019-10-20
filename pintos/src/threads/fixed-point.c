@@ -51,7 +51,7 @@ fp_t sub_int_from_fp(fp_t fp, int n)
 
 fp_t mul_fp(fp_t fp, fp_t fp1)
 {
-  fp_t fp_ = (((int64_t)fp)*(fp1 >>14));
+  fp_t fp_ = (((int64_t)fp)*(fp1)/(1<<14));
   return fp_;
 }
 
@@ -63,7 +63,7 @@ fp_t mul_fp_by_int(fp_t fp, int n)
 
 fp_t div_fp(fp_t fp, fp_t fp1)
 {
-  fp_t fp_ = (((int64_t)fp)/(fp1 >> 14));
+  fp_t fp_ = (((int64_t)fp) * (1 << 14)/(fp1));
   return fp_;
 }
 

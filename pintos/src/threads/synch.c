@@ -228,6 +228,7 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  if(!thread_mlfqs) {
   enum intr_level old_level;
   old_level = intr_disable ();
   struct thread *current_thread = thread_current ();
@@ -252,7 +253,10 @@ lock_acquire (struct lock *lock)
   list_push_back(&current_thread->locks_held, &lock->lock_elem);
 
   intr_set_level (old_level);
-
+  } else { // End if(!thread_mlfqs)
+    sema_down(&lock->semaphore);
+    lock->holder = thread_current();
+  }
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -274,7 +278,8 @@ lock_try_acquire (struct lock *lock)
   {
     struct thread *current_thread = thread_current();
     lock->holder = current_thread;
-    list_push_back(&current_thread->locks_held, &lock->lock_elem);
+    if(!thread_mlfqs)
+      list_push_back(&current_thread->locks_held, &lock->lock_elem);
   }
   return success;
 }
@@ -289,25 +294,31 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-  enum intr_level old_level;
-  old_level = intr_disable ();
-  struct thread *current_thread = thread_current();
 
-  lock->holder = NULL;
+  if(!thread_mlfqs) {
+    enum intr_level old_level;
+    old_level = intr_disable ();
+    struct thread *current_thread = thread_current();
 
-  list_remove(&lock->lock_elem);
+    lock->holder = NULL;
 
-  //sema_up (&lock->semaphore);
-  //if thread's practical priority and orignal priority are not same, then we perform a new round of nested donations on the thread.
-  int old_priority = thread_get_priority();
-  int new_priority = thread_get_practical_priority(current_thread);
-  if(old_priority != new_priority)
-  {
-    thread_set_practical_priority(current_thread,new_priority);
-  }
-  sema_up (&lock->semaphore);
+    list_remove(&lock->lock_elem);
+
+    //sema_up (&lock->semaphore);
+    //if thread's practical priority and orignal priority are not same, then we perform a new round of nested donations on the thread.
+    int old_priority = thread_get_priority();
+    int new_priority = thread_get_practical_priority(current_thread);
+    if(old_priority != new_priority)
+    {
+      thread_set_practical_priority(current_thread,new_priority);
+    }
+    sema_up (&lock->semaphore);
   
     intr_set_level(old_level);
+  } else {
+    lock->holder = NULL;
+    sema_up(&lock->semaphore);
+  }
 }
 
 /* Returns true if the current thread holds LOCK, false
