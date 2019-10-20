@@ -1,5 +1,4 @@
-/* This file is derived from source code for the Nachos
-   instructional operating system.  The Nachos copyright notice
+/* This file is derived from source code for the Nachos   instructional operating system.  The Nachos copyright notice
    is reproduced in full below. */
 
 /* Copyright (c) 1992-1996 The Regents of the University of California.
@@ -113,20 +112,30 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
   //possible race condition??...
   old_level = intr_disable ();
-  sema->value++;
-  //int current_thread_priority = thread_current()->practical_priority;
-  //struct list_elem *max_priority_item;
-  //sema->value++;
-  if (!list_empty (&sema->waiters))
-  {
-    struct list_elem *max_item = list_max(&sema->waiters, compare_list_element_priority, NULL);
-    list_remove(max_item);
-    struct thread *t = list_entry(max_item, struct thread, elem);
-    thread_unblock (t);
-    if (t->practical_priority > thread_current()->practical_priority && strcmp(thread_current()->name, "idle") != 0){
-      thread_yield();
+
+  if(!thread_mlfqs) {
+    sema->value++;
+    //int current_thread_priority = thread_current()->practical_priority;
+    //struct list_elem *max_priority_item;
+    //sema->value++;
+    if (!list_empty (&sema->waiters))
+    {
+      struct list_elem *max_item = list_max(&sema->waiters, compare_list_element_priority, NULL);
+      list_remove(max_item);
+      struct thread *t = list_entry(max_item, struct thread, elem);
+      thread_unblock (t);
+  
+      if (t->practical_priority > thread_current()->practical_priority && strcmp(thread_current()->name, "idle") != 0){
+        thread_yield();
+      }
     }
+  } else { 
+   // Code for multi level feedback queue
+     if(!list_empty (&sema->waiters))
+      thread_unblock(list_entry(list_pop_front(&sema->waiters),struct thread, elem));
+     sema->value++;
   }
+
   intr_set_level (old_level);
   /*{
       //thread_unblock (list_entry (list_pop_front (&sema->waiters),struct thread, elem));

@@ -201,13 +201,14 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
     // Every 4th tick, recalculate the priority of each thread
     if(ticks % 4 == 0) {
-      calculate_priority_foreach();
+      calculate_priority_for_each_thread();
+      yield_max_priority_thread();
     }
 
     // For every second, we calculate the system load_avg and recent_cpu for each thread
     if(ticks % TIMER_FREQ == 0) {
       calculate_load_avg(); 
-      calculate_recent_cpu_foreach();
+      calculate_recent_cpu_for_each_thread();
     }
   }
   if (list_empty(&waiting_queue))
@@ -223,6 +224,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   	sema_up(&cur->t_sema);  
   	list_remove(&cur->t_elem);	
   }
+  yield_max_priority_thread();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

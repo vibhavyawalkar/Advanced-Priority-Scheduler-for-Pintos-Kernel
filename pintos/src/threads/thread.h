@@ -145,7 +145,9 @@ void thread_yield (void);
 
 //functions to ensure priority scheduling, by sorting ready list.
 void update_ready_list (void);
+//The below function compares practical priority, hence not used for mlfqs
 bool compare_list_element_priority (const struct list_elem *first_entry, const struct list_elem *second_entry, void *aux);
+bool compare_list_element_priority_mlfqs (const struct list_elem *first_entry, const struct list_elem *second_entry, void *aux);
 int highest_priority_in_list (void);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
@@ -170,4 +172,6 @@ void calculate_priority_foreach(void);
 void calculate_load_avg(void);
 void calculate_recent_cpu(struct thread *t, void *aux);
 void calculate_recent_cpu_foreach(void);
+void yield_max_priority_thread(void);
+void calculate_recent_cpu_for_each_thread(void);
 #endif /* threads/thread.h */
