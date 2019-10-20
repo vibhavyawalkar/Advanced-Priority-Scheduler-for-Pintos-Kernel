@@ -29,6 +29,8 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+static bool less_than_func (const struct list_elem *a, const struct list_elem *b,
+  void *aux);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -71,14 +73,12 @@ timer_calibrate (void)
    Returns true if a is less than b, false if a is greater than or equal to b.  
 */
 bool
-less_than_func (const struct list_elem *a, 
-	const struct list_elem *b, void *aux UNUSED) {
+less_than_func (const struct list_elem *a, const struct list_elem *b,
+  void *aux UNUSED) {
+  const struct thread *first = list_entry(a, struct thread, t_elem);
+  const struct thread *second = list_entry(b, struct thread, t_elem);
 
-	const struct thread *first = list_entry(a, struct thread, t_elem);
-	const struct thread *second = list_entry(b, struct thread, t_elem);
-
-	return first->wakeup_time < second->wakeup_time;
-
+  return first->wakeup_time < second->wakeup_time;
 }
 
 /* Returns the number of timer ticks since the OS booted. */

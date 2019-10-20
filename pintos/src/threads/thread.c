@@ -231,20 +231,6 @@ thread_block (void)
   schedule ();
 }
 
-/*
-src/lib/kernel/list.h:
-
-Compares the value of two list elements A and B, given auxiliary data AUX.  Returns true if A is less than B, or false if A is greater than or equal to B.
-
-typedef bool list_less_func (const struct list_elem *a,
-                             const struct list_elem *b,
-                             void *aux);
-
-Operations on lists with ordered elements.
-
-void list_sort (struct list *,list_less_func *, void *aux);
-
-*/
 bool
 compare_list_element_priority (const struct list_elem *first_elem, const struct list_elem *second_elem, void *aux)
 {
@@ -252,11 +238,6 @@ compare_list_element_priority (const struct list_elem *first_elem, const struct 
   struct thread *thread_first = list_entry(first_elem, struct thread, elem);
   struct thread *thread_second = list_entry(second_elem, struct thread, elem);
   return (thread_first->practical_priority < thread_second->practical_priority);
-  /*if (thread_first->practical_priority > thread_second->practical_priority)
-  {
-    return true;
-  }
-  return false;*/
 }
 
 bool
@@ -465,6 +446,8 @@ thread_get_priority (void)
   return priority;
 }
 
+/* Calculates the priority for each thread in the all_list
+  which includes all ready and blocked threads */
 void
 calculate_priority_for_each_thread()
 {
@@ -478,7 +461,8 @@ calculate_priority_for_each_thread()
   }
 }
 
-/*   */
+/*  Calculates the recent cpu for each thread in the all_list
+   which includes all ready and blocked threads */
 void
 calculate_recent_cpu_for_each_thread()
 {
@@ -584,14 +568,6 @@ calculate_thread_priority(struct thread * t, void *aux UNUSED)
   // If the thread priority above is no the highest priority thread, the it yields
 }
 
-void calculate_priority_foreach(void)
-{
-  thread_foreach(calculate_thread_priority, NULL);
-/*  if (!list_empty(&ready_list)) {
-    list_sort(&ready_list, thread_cmp_priority, NULL);
-  } */
-}
-
 void yield_max_priority_thread(void)
 {
   if(list_empty(&ready_list)) return;
@@ -623,11 +599,6 @@ void calculate_recent_cpu(struct thread *t, void *aux UNUSED)
     fp_t coefficient = div_fp(coeff_numerator, coeff_denominator);
     t->recent_cpu = add_int_to_fp(mul_fp(coefficient, t->recent_cpu), t->nice);   
   }
-}
-
-void calculate_recent_cpu_foreach(void)
-{
-  thread_foreach(calculate_recent_cpu, NULL);
 }
 
 void calculate_load_avg(void)
