@@ -132,16 +132,16 @@ sema_up (struct semaphore *sema)
       thread_yield();
     }
   } else { // Code for multi level feedback queue
+    sema->value++;
     if (!list_empty (&sema->waiters)) {
-      /*struct thread *t = list_entry(list_pop_front(&sema->waiters), struct thread, elem);
-      thread_unblock(t); */
       struct list_elem *max_priority_item = list_max(&sema->waiters, compare_list_element_priority, NULL);
       list_remove(max_priority_item);
 
       struct thread *max_priority_thread = list_entry(max_priority_item, struct thread, elem);
       thread_unblock (max_priority_thread);
+      yield_max_priority_thread();
+
     }  
-    sema->value++;
   }
 
   intr_set_level (old_level);
