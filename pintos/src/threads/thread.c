@@ -237,7 +237,11 @@ compare_list_element_priority (const struct list_elem *first_elem, const struct 
   (void)aux;
   struct thread *thread_first = list_entry(first_elem, struct thread, elem);
   struct thread *thread_second = list_entry(second_elem, struct thread, elem);
-  return (thread_first->practical_priority < thread_second->practical_priority);
+  if (thread_first->practical_priority < thread_second->practical_priority)
+  {
+    return true;
+  }
+  return false;
 }
 
 bool
@@ -373,7 +377,7 @@ thread_foreach (thread_action_func *func, void *aux)
 int
 highest_priority_in_list (void)
 {
-  /*struct list_elem *front;
+  struct list_elem *front;
   update_ready_list();
   if (!list_empty(&ready_list))
   {
@@ -381,10 +385,7 @@ highest_priority_in_list (void)
     struct thread *hp_thread = list_entry (front, struct thread, elem);
     return hp_thread->priority;
   }
-  return PRI_MIN;*/
-  if (list_empty (&ready_list)) return PRI_MIN;
-  struct thread *t = list_entry (list_max(&ready_list,compare_list_element_priority,NULL), struct thread, elem);
-  return t->priority;
+  return PRI_MIN;
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
@@ -410,30 +411,40 @@ thread_set_priority (int new_priority)
 /* Set all nested dependent threads with supplied practical_priority
    Called with interrupts disabled. */
    //todo: add check for depth.
+
 void
 thread_set_practical_priority (struct thread *t, int new_priority)
 {
   if(thread_mlfqs)
     return;
-  ASSERT (intr_get_level () == INTR_OFF);
-  t->practical_priority = new_priority;
 
-  /* Check if it is depending on other threads */
+  ASSERT (intr_get_level () == INTR_OFF);
+
+  t->practical_priority = new_priority;
+  struct lock *l = t->resource_waiting;
+   //Check if it is depending on other threads 
   if (t->resource_waiting != NULL)
   {
-    struct thread *child = t->resource_waiting->holder;
-    if (child->practical_priority < new_priority)
-      thread_set_practical_priority (child, new_priority);
+    struct thread *lock_holder_thread = l->holder;
+    if (lock_holder_thread->practical_priority < new_priority)
+      thread_set_practical_priority (lock_holder_thread, new_priority);
   }
-/*
-  struct thread *dependent = current_thread;
-  while(1)//dependent->resource_waiting != NULL)
+  /*t->practical_priority = new_priority;
+  printf("The thread %s new_priority is %d\n",t->name,t->practical_priority);
+  struct lock *l = t->resource_waiting;
+  printf("the new priority is %d\n", new_priority);
+  while(l != NULL)//while(dependent->resource_waiting)
   {
-    dependent->practical_priority = max_priority;
-    dependent = dependent->resource_waiting->holder;
-    if (dependent->resource_waiting == NULL) break;
-  }
-  */
+    t = l->holder;
+    l = t->resource_waiting;
+    printf("The thread %s new_priority is %d\n",t->name,t->practical_priority);
+    printf("The thread %s child is %s\n",t->name, t->resource_waiting->holder->name);
+    if(t->practical_priority <= new_priority)
+    {
+      t->practical_priority = new_priority;
+    } else break;  
+    //if (dependent->resource_waiting == NULL) return;
+  }*/
 }
 
 /* Returns the current thread's priority. */
@@ -481,7 +492,7 @@ calculate_recent_cpu_for_each_thread()
 int
 thread_get_practical_priority (struct thread *current_thread)
  {
-  ASSERT (intr_get_level () == INTR_OFF);
+  //ASSERT (intr_get_level () == INTR_OFF);
 
   struct lock *list_content;
 
@@ -493,7 +504,7 @@ thread_get_practical_priority (struct thread *current_thread)
   for (struct list_elem* iter = list_begin (&current_thread->locks_held); iter != list_end(&current_thread->locks_held); iter = list_next (iter))
   {
     list_content = list_entry (iter, struct lock, lock_elem);
-    if (!list_empty (&list_content->semaphore.waiters))
+    if (list_empty (&list_content->semaphore.waiters) == false)
     {
       /* Get the max priority from this lock's waiters */
       struct list_elem *max_priority_item = list_max (&list_content->semaphore.waiters, compare_list_element_priority, NULL);
@@ -706,8 +717,8 @@ init_thread (struct thread *t, const char *name, int priority)
     t->priority = priority;
     t->practical_priority = priority;
   } else {
-    t->priority = PRI_MAX; // Since recent cpu and nice are zero at this stage
-    t->practical_priority = PRI_MAX; // Setting practical priority to PRI_MAX if used by mistake for mlqfs this shouldn't cause a problem
+    t->priority = PRI_DEFAULT; // Since recent cpu and nice are zero at this stage
+    t->practical_priority = PRI_DEFAULT; // Setting practical priority to PRI_MAX if used by mistake for mlqfs this shouldn't cause a problem
   }
   list_init (&t->locks_held);
   t->resource_waiting = NULL;
