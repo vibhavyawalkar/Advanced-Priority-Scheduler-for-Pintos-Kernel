@@ -492,7 +492,7 @@ calculate_recent_cpu_for_each_thread()
 int
 thread_get_practical_priority (struct thread *current_thread)
  {
-  //ASSERT (intr_get_level () == INTR_OFF);
+  ASSERT (intr_get_level () == INTR_OFF);
 
   struct lock *list_content;
 
