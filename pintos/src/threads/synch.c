@@ -126,8 +126,10 @@ sema_up (struct semaphore *sema)
 
     struct thread *max_priority_thread = list_entry(max_priority_item, struct thread, elem);
     thread_unblock (max_priority_thread);
-    
-    if ( max_priority_thread->practical_priority > current_thread_priority && strcmp( thread_current()->name , "idle")!= 0)
+    if (intr_context()){
+      intr_yield_on_return();
+    }
+    else if ( max_priority_thread->practical_priority > current_thread_priority)
     {
       thread_yield();
     }

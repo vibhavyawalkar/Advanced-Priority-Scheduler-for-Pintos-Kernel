@@ -508,7 +508,7 @@ thread_set_nice (int nice)
 
   calculate_thread_priority(thread_current(), NULL);
 
-  if(strcmp(thread_current()->name, "idle") != 0) {
+  if(thread_current() != idle_thread) {
     yield_max_priority_thread();
   /*
     if(highest_priority_in_list() > thread_current()->priority) {
@@ -553,7 +553,7 @@ void
 calculate_thread_priority(struct thread * t, void *aux UNUSED)
 {
 
-  if(strcmp(thread_current ()->name, "idle") != 0) {
+  if(t != idle_thread) {
     t->priority = PRI_MAX - (convert_fp_to_integer_nearest(div_fp_by_int(t->recent_cpu,4))) - (t->nice*2);
     if(t->priority < PRI_MIN) t->priority = PRI_MIN;
     if(t->priority > PRI_MAX) t->priority = PRI_MAX;
