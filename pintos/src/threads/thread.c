@@ -207,7 +207,7 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
   /* Run immediately if higher priority */
   //At this point, practical_priority for mlfqs is same as PRI_MAX, as recent cpu and nice are zero
-  if (t->practical_priority > thread_get_priority ())
+  if (t->priority > thread_get_priority ())
   {
     thread_yield();
   }
@@ -418,33 +418,15 @@ thread_set_practical_priority (struct thread *t, int new_priority)
   if(thread_mlfqs)
     return;
 
-  ASSERT (intr_get_level () == INTR_OFF);
-
   t->practical_priority = new_priority;
   struct lock *l = t->resource_waiting;
    //Check if it is depending on other threads 
-  if (t->resource_waiting != NULL)
+  if (l != NULL)
   {
     struct thread *lock_holder_thread = l->holder;
-    if (lock_holder_thread->practical_priority < new_priority)
-      thread_set_practical_priority (lock_holder_thread, new_priority);
+    if (t->practical_priority > new_priority) return;
+    thread_set_practical_priority (lock_holder_thread, new_priority);
   }
-  /*t->practical_priority = new_priority;
-  printf("The thread %s new_priority is %d\n",t->name,t->practical_priority);
-  struct lock *l = t->resource_waiting;
-  printf("the new priority is %d\n", new_priority);
-  while(l != NULL)//while(dependent->resource_waiting)
-  {
-    t = l->holder;
-    l = t->resource_waiting;
-    printf("The thread %s new_priority is %d\n",t->name,t->practical_priority);
-    printf("The thread %s child is %s\n",t->name, t->resource_waiting->holder->name);
-    if(t->practical_priority <= new_priority)
-    {
-      t->practical_priority = new_priority;
-    } else break;  
-    //if (dependent->resource_waiting == NULL) return;
-  }*/
 }
 
 /* Returns the current thread's priority. */
@@ -492,7 +474,6 @@ calculate_recent_cpu_for_each_thread()
 int
 thread_get_practical_priority (struct thread *current_thread)
  {
-  ASSERT (intr_get_level () == INTR_OFF);
 
   struct lock *list_content;
 
