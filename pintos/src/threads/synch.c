@@ -67,10 +67,7 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0)
     {
-     // if(!thread_mlfqs)
-        list_push_back (&sema->waiters, &thread_current()->elem);
-      //else
-        //list_insert_ordered(&sema->waiters, &thread_current()->elem, (list_less_func *) &compare_list_element_priority_mlfqs, NULL);
+      list_push_back (&sema->waiters, &thread_current()->elem);
       thread_block ();
     }
   sema->value--;
@@ -92,10 +89,10 @@ sema_try_down (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (sema->value > 0)
-    {
-      sema->value--;
-      success = true;
-    }
+  {
+    sema->value--;
+    success = true;
+  }
   else
     success = false;
   intr_set_level (old_level);
@@ -288,8 +285,7 @@ lock_try_acquire (struct lock *lock)
   if (success)
   {
     lock->holder = thread_current();
-    //if(!thread_mlfqs)
-      list_push_back(&thread_current()->locks_held, &lock->lock_elem);
+    list_push_back(&thread_current()->locks_held, &lock->lock_elem);
   }
   return success;
 }
@@ -314,7 +310,6 @@ lock_release (struct lock *lock)
 
     list_remove(&lock->lock_elem);
 
-    //sema_up (&lock->semaphore);
     //if thread's practical priority and orignal priority are not same, then we perform a new round of nested donations on the thread.
     int old_priority = thread_get_priority();
     int new_priority = thread_get_practical_priority(current_thread);

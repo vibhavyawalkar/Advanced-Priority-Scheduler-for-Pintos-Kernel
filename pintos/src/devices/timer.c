@@ -108,8 +108,8 @@ timer_sleep (int64_t ticks)
   int64_t sleep_end_at = start + ticks;
   ASSERT (intr_get_level () == INTR_ON);
 
-  /* Instead of busying waiting, we will setup a semaphores
-     for the current thread and put it into the waiting queue 
+  /* Instead of busy waiting, we will setup a semaphore
+     for the current thread and put it the waiting queue 
   */
   enum intr_level old_level;
   old_level = intr_disable ();

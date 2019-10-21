@@ -206,7 +206,6 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
   /* Run immediately if higher priority */
-  //At this point, practical_priority for mlfqs is same as PRI_MAX, as recent cpu and nice are zero
   if (t->priority > thread_get_priority ())
   {
     thread_yield();
@@ -278,7 +277,6 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
-  //list_insert_ordered(&ready_list, &t->elem,(list_less_func *) &compare_list_element_priority,NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -350,7 +348,6 @@ thread_yield (void)
   old_level = intr_disable ();
   if (cur != idle_thread)
     list_push_back (&ready_list, &cur->elem);
-  //list_insert_ordered(&ready_list, &cur->elem,(list_less_func *) &compare_list_element_priority,NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -510,10 +507,6 @@ thread_set_nice (int nice)
 
   if(thread_current() != idle_thread) {
     yield_max_priority_thread();
-  /*
-    if(highest_priority_in_list() > thread_current()->priority) {
-      thread_yield();
-    }*/
   }
   intr_set_level(old_level);
 }
@@ -557,7 +550,6 @@ calculate_thread_priority(struct thread * t, void *aux UNUSED)
     t->priority = PRI_MAX - (convert_fp_to_integer_nearest(div_fp_by_int(t->recent_cpu,4))) - (t->nice*2);
     if(t->priority < PRI_MIN) t->priority = PRI_MIN;
     if(t->priority > PRI_MAX) t->priority = PRI_MAX;
-    // If the thread priority above is no the highest priority thread, the it yields
   }
 }
 
@@ -698,8 +690,7 @@ init_thread (struct thread *t, const char *name, int priority)
     t->priority = priority;
     t->practical_priority = priority;
   } else {
-    t->priority = PRI_DEFAULT; // Since recent cpu and nice are zero at this stage
-    t->practical_priority = PRI_DEFAULT; // Setting practical priority to PRI_MAX if used by mistake for mlqfs this shouldn't cause a problem
+    t->priority = PRI_MAX; // Since recent cpu and nice are zero at this stage
   }
   list_init (&t->locks_held);
   t->resource_waiting = NULL;
@@ -743,7 +734,6 @@ next_thread_to_run (void)
     }
     list_remove(max_item);
     return list_entry(max_item, struct thread, elem);
-    //return list_entry (list_max (&ready_list, compare_list_element_priority, NULL), struct thread, elem);
   }
 }
 

@@ -166,13 +166,11 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-void increment_recent_cpu(void);
 void calculate_thread_priority(struct thread *t, void *aux);
-void calculate_priority_foreach(void);
-void calculate_load_avg(void);
-void calculate_recent_cpu(struct thread *t, void *aux);
-void calculate_recent_cpu_foreach(void);
-void yield_max_priority_thread(void);
-void calculate_recent_cpu_for_each_thread(void);
 void calculate_priority_for_each_thread(void);
+void calculate_load_avg(void);
+void increment_recent_cpu(void);
+void calculate_recent_cpu(struct thread *t, void *aux);
+void calculate_recent_cpu_for_each_thread(void);
+void yield_max_priority_thread(void);
 #endif /* threads/thread.h */
