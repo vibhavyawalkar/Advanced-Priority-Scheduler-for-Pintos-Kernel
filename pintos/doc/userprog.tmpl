@@ -30,19 +30,39 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+//In process.c 
+struct process_info{
+	int argc;  			// The number of arguments passed.
+	char *exec_ name 	// The executable name of the file.
+	char *args_copy		// Pointer to arguments data in heap.
+}
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+The process_execute(), function is responsible for starting a user program. The 'char *file_name' argument passed to this function, contains the raw filename. This means the file name contains both the executable name and the arguments.So in process_execute(), we extract the file name and copy the argument strings to process_info struct. Then we send this struct to start_process() which further sends it to load().
+
+The load() function makes a call to setup_stack(). Once the stack for the function is setup, void** esp will be initialized with PHYS_BASE, which is the top of the stack. Now we need to incrementally move the pointer and write data to the pointer. So we call our function parse_args(). In parse_args() we first calculate the total number of arguments provided in a variable 'argc'. Then we push the file's executable name and the arguments strings onto the stack ignoring the ' ' delimeter in order(argv[0]->argv[1]->.....->argv[argc-1]). We record the locations of the strings while pushing them to the stack. Now we push the reference of the argument strings in reverse order(&argv[argc-1]->.....->&argv[1]->&argc[0]). Finally we push in 'argc' onto the stack, followed by the return address which will be a null pointer.
+
+The 'char *file_name' argument passed to process_execute is limited to PGSIZE, so we ensure that we only memcpy PAGESZ amount of data in the process_info struct, that we pass to start_process() and then to load(). Since the information we push to the stack may exceed the allocated page so we also check the size of data being pushed on the stack to ensure we are always writing within the stack boundaries.
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
+strtok_r is a reentrant function. This means that during the course of it's execution, it can be interrupted, the interrupt may be serviced and then this function will resume it's functioning. strtok_r() function is defined as => char *strtok_r(char *str, const char *delim, char **saveptr). The saveptr argument is a pointer to a char *variable that is used internally by strtok_r to maintain context between successive calls that may be attempting to parse the same string. On the other hand the strtok() function uses a static buffer while parsing which is not safe if the function is preempted. Since it uses a static buffer, strtok() is niether thread safe, nor reentrant. If a funtion calls strtok(), no function that it calls while it is using strtok can also use strtok , and it cannot be called by any function that is itself using strtok. To avoid this Pintos implements strtok_r() and not strtok().
 
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+In the unix approach when the argument is processed in shell, it is done in user mode. While in Pintos OS the arguments are processed in kernel mode. The code executed in kernel mode has more privileges than a similar code in user mode, hence this code is more open to malicious code that can harm the system. So we can say that the unix approach is safer.
+
+The kernel approach requires passed filename to be absolute, while the unix approach allows the user to get away with relative paths. This is due to the fact that in unix the shell that is processing the arguments has a better context of the executing enviornment than a kernel which only recieves the arguments as a pointer.
+
+Since the shell is a system application, processing arguments in the shell, outside the kernel, simplifies the kernel code and can help prevent errors in kernel. The shell approach can preemptively check if the executable file exists before passing it to the kernel. It can further verify wether the arguments passed are as expected.
 
 			     SYSTEM CALLS
 			     ============
@@ -53,9 +73,12 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+
 
 ---- ALGORITHMS ----
 

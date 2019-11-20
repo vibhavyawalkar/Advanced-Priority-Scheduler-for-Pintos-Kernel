@@ -19,6 +19,13 @@
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
+
+struct process_info{
+  int argc;       // The number of arguments passed.
+  char *exec_ name  // The executable name of the file.
+  char *args_copy   // Pointer to arguments data in heap.
+}
+
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 /* Starts a new thread running a user program loaded from
@@ -28,6 +35,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+  printf("file and arguments are: %s \n", file_name);
   char *fn_copy;
   tid_t tid;
 
@@ -88,7 +96,11 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+  //TODO: Implement
+  //Infinite Loop For now.
+  while(1);
+  //return -1;
+
 }
 
 /* Free the current process's resources. */
