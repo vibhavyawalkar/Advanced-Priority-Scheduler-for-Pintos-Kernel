@@ -17,16 +17,19 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 
 struct process_info{
   int argc;       // The number of arguments passed.
-  char *exec_ name  // The executable name of the file.
-  char *args_copy   // Pointer to arguments data in heap.
-}
+  char *exec_name;  // The executable name of the file.
+  char *args_copy;   // Pointer to arguments data in heap.
+};
 
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool load (struct process_info *proc, void (**eip) (void), void **esp);
+
+static void parse_args(struct process_info *proc, void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -36,8 +39,16 @@ tid_t
 process_execute (const char *file_name) 
 {
   printf("file and arguments are: %s \n", file_name);
+
   char *fn_copy;
   tid_t tid;
+
+  //Obtains a single free page and returns its kernel virtual address for process_info
+  //struct process_info *proc = palloc_get_page(0);
+  struct process_info *proc = malloc(sizeof(struct process_info));
+  //Sets the SIZE sizeof() bytes in proc to 0
+  //i.e. initialize the proc frame.
+  memset(proc,0,sizeof(struct process_info));
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -46,10 +57,42 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+  /* Make a copy of FILE_NAME.
+     Otherwise there's a race between the caller and load(). */
+  proc->args_copy = palloc_get_page(0);
+  if(proc->args_copy == NULL) {
+    free(proc);
+    return TID_ERROR;
+  }
+  strlcpy(proc->args_copy, file_name, PGSIZE);
+  //calloc()
+  //Extract file name from char *file_name
+  char *first_space = strchr(file_name,' ');
+  int length = first_space - file_name;
+  printf("first_space %s.\nlength %d.\n", first_space, length);
+  char *execName = (char *)malloc(sizeof(char *)*length);
+  /*if (execName != NULL)
+    memset (execName, 0, length);*/
+
+  if (execName == NULL) 
+  {
+    free (proc);
+    return TID_ERROR;
+  }
+  memcpy(execName, file_name, length);
+  proc->exec_name = execName;
+  //char *save_ptr;
+  //proc->exec_name = strtok_r(proc->args_copy, " ", &save_ptr);
+  printf("exec_name %s.\n", proc->exec_name);
+  printf("107\n");
+  // Create a new thread to execute FILE_NAME.
+  tid = thread_create (proc->exec_name, PRI_DEFAULT, start_process, proc);
+  printf("110\n");
+  if (tid == TID_ERROR){
+    palloc_free_page (proc->args_copy);
+    free(execName);
+    free(proc);
+  }
   return tid;
 }
 
@@ -58,19 +101,27 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  char *file_name = file_name_;
+  printf("91\n");
+  printf("exec_name: %p.\n", file_name_);
+  //typecast void pointer to struct process_info
+  struct process_info *proc = (struct process_info *) file_name_ ;
+  char *file_name = proc->exec_name;
   struct intr_frame if_;
   bool success;
 
+  printf("exec_name: %s.\n", proc->exec_name);
+  printf("args: %s.\n", proc->args_copy);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+
+  success = load (proc, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
+  palloc_free_page(proc);
   if (!success) 
     thread_exit ();
 
@@ -98,7 +149,7 @@ process_wait (tid_t child_tid UNUSED)
 {
   //TODO: Implement
   //Infinite Loop For now.
-  while(1);
+  while(true) thread_yield();
   //return -1;
 
 }
@@ -213,12 +264,64 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
 
+/* Push arguments, their references, and argc onto the stack */
+ static void 
+ parse_args(struct process_info * proc, void **esp) {
+
+  /* Build up the index of where text is located */
+  char *argv[proc->argc];
+  char *str_ptr = proc->args_copy;
+
+  int i;
+  for (i = 0; i < proc->argc; i++)
+  {  
+    char *cur_str = str_ptr;
+    *(char *)esp -= strlen(cur_str) + 1;
+    memcpy(*esp, (void *)cur_str, strlen(cur_str) + 1);
+
+    str_ptr = strchr(str_ptr, '\0') + 1;
+    //skip all ' '
+    while (*str_ptr == ' ') str_ptr++;
+    argv[i] = *esp;
+  }
+
+  //pad to 4 bytes
+  for (i = 0; i < ((int)(*esp) % 4); i++)
+  {
+    char ch = 0;
+    *(char *)esp -= sizeof(ch);
+    memcpy(*esp, (void *)ch, sizeof(ch));
+  }
+
+  //push the reference to arguments in reverse
+  int zero = 0;
+  //start with a null pointer at args[argc]
+  *(char *)esp -= sizeof(zero);
+  memcpy(*esp, (void *)zero, sizeof(zero));
+  for (i = proc->argc - 1; i >= 0; i--)
+  {
+    *(char *)esp -= sizeof(char *);
+    memcpy(*esp, (void *)argv, sizeof(char *));
+
+  }
+  void *saved_esp = *esp;
+  *(char *)esp -= sizeof(void *);
+  memcpy(*esp, (void *)saved_esp, sizeof(void *));
+  *(char *)esp -= sizeof(proc->argc);
+  memcpy(*esp, (void *)proc->argc, sizeof(proc->argc));
+  // Push return address
+  *(char *)esp -= sizeof(zero);
+  memcpy(*esp, (void *)zero, sizeof(zero));
+  printf("Done parsing arguments");
+  }
+
+
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp) 
+load (struct process_info *proc, void (**eip) (void), void **esp) 
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -234,11 +337,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  printf("is the kernel panic here\n");
+  printf("exec_name: %s.\n", proc->exec_name);
+  file = filesys_open (proc->exec_name);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
-      goto done; 
+      printf ("load: %s: open failed\n", proc->exec_name);
+      goto done;
     }
 
   /* Read and verify executable header. */
@@ -250,7 +355,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      printf ("load: %s: error loading executable\n", file_name);
+      printf ("load: %s: error loading executable\n", proc->exec_name);
       goto done; 
     }
 
@@ -316,6 +421,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
+
+  /* Parse arguments to the stack*/
+  parse_args(proc, esp);
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
