@@ -1,4 +1,5 @@
 #include "userprog/syscall.h"
+#include "userprog/process.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
@@ -17,4 +18,17 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
   printf ("system call!\n");
   thread_exit ();
+}
+
+
+void
+exit(int status){
+	strcut thread * current_thread = thread_current();
+	current_thread->exit_status = status;
+	thread_exit();
+}
+
+int
+wait (pid_t pid){
+	return process_wait (pid);
 }
