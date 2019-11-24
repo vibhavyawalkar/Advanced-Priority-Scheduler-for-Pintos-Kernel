@@ -40,45 +40,48 @@ process_execute (const char *file_name)
 {
   printf("file and arguments are: %s \n", file_name);
 
-  char *fn_copy;
+  //char *fn_copy;
   tid_t tid;
 
   //Obtains a single free page and returns its kernel virtual address for process_info
   //struct process_info *proc = palloc_get_page(0);
   struct process_info *proc = malloc(sizeof(struct process_info));
+  if(proc == NULL) {
+    return TID_ERROR;
+  }
   //Sets the SIZE sizeof() bytes in proc to 0
   //i.e. initialize the proc frame.
   memset(proc,0,sizeof(struct process_info));
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
+  /*fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (fn_copy, file_name, PGSIZE);*/
 
   /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load(). */
+     Otherwise there's a race between the caller and load().*/
   proc->args_copy = palloc_get_page(0);
   if(proc->args_copy == NULL) {
     free(proc);
     return TID_ERROR;
   }
   strlcpy(proc->args_copy, file_name, PGSIZE);
-  //calloc()
   //Extract file name from char *file_name
   char *first_space = strchr(file_name,' ');
-  int length = first_space - file_name;
+  size_t length = sizeof(char)*(first_space - file_name);
   printf("first_space %s.\nlength %d.\n", first_space, length);
-  char *execName = (char *)malloc(sizeof(char *)*length);
-  /*if (execName != NULL)
-    memset (execName, 0, length);*/
+  char *execName = malloc(length);
+  if (execName != NULL)
+    memset (execName, 0, length);
 
   if (execName == NULL) 
   {
     free (proc);
     return TID_ERROR;
   }
+  execName[length]='\0';
   memcpy(execName, file_name, length);
   proc->exec_name = execName;
   //char *save_ptr;
@@ -121,7 +124,7 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  palloc_free_page(proc);
+  free(proc);
   if (!success) 
     thread_exit ();
 
