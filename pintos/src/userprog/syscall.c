@@ -23,12 +23,12 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 void
 exit(int status){
-	strcut thread * current_thread = thread_current();
+	struct thread * current_thread = thread_current();
 	current_thread->exit_status = status;
 	thread_exit();
 }
 
 int
-wait (pid_t pid){
+wait (tid_t pid){
 	return process_wait (pid);
 }
