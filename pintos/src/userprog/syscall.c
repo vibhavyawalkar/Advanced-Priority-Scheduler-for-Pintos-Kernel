@@ -11,6 +11,7 @@ static void syscall_handler (struct intr_frame *);
 static void halt(void);
 static void exit(int status);
 static int wait(tid_t pid);
+static unsigned int write(int fd, const void *buffer, unsigned int count);
 
 void
 syscall_init (void) 
@@ -25,7 +26,7 @@ syscall_handler (struct intr_frame *f)
     exit(-1);
 
   int syscall_number = *(int*)f->esp;
-  printf ("system call!\n");
+  printf ("System Call! Number: %d \n", syscall_number);
   switch(syscall_number) {
     case SYS_HALT:
     {
@@ -34,6 +35,7 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_EXIT:
     {
+        printf("Calling exit\n");
         int status = *((int*)f->esp + 1);
         exit(status);
         break;
@@ -45,6 +47,7 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_WAIT:
     {
+        printf("Calling Wait\n");
         tid_t pid = (unsigned int)(*((int*)f->esp + 1));
         f->eax = wait(pid);
         break;
@@ -76,7 +79,11 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_WRITE:
     {
-        // Call to write function
+        printf("Calling write\n");
+        int fd = *((int*)f->esp + 1);
+        void *buffer = (void*)(*((int*)f->esp + 2));
+        unsigned int size = *((unsigned int*)f->esp + 3);
+        f->eax = write(fd, buffer, size);
         break;
     }
     case SYS_SEEK:
@@ -107,10 +114,20 @@ static void
 exit(int status) {
     struct thread * current_thread = thread_current();
     current_thread->exit_status = status;
+    printf ("%s: exit(%d)\n", current_thread->name, status);
     thread_exit();
 }
 
 static int
-wait (tid_t pid) {
+wait(tid_t pid) {
     return process_wait (pid);
+}
+
+static unsigned int
+write(int fd, const void *buffer, unsigned int count) {
+    if(fd == 1) {
+         putbuf(buffer, count);
+         return count;
+     }
+     return count;
 }
