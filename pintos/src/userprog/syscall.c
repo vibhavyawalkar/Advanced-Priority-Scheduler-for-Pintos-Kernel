@@ -4,8 +4,13 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "threads/init.h"
 
 static void syscall_handler (struct intr_frame *);
+static void halt(void);
+static void exit(int status);
+static int wait(tid_t pid);
 
 void
 syscall_init (void) 
@@ -14,21 +19,98 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f)
 {
+  if(f->esp == NULL && f->esp > PHYS_BASE)
+    exit(-1);
+
+  int syscall_number = *(int*)f->esp;
   printf ("system call!\n");
+  switch(syscall_number) {
+    case SYS_HALT:
+    {
+        halt();
+        break;
+    }
+    case SYS_EXIT:
+    {
+        int status = *((int*)f->esp + 1);
+        exit(status);
+        break;
+    }
+    case SYS_EXEC:
+    {
+        // Call to exec function
+        break;
+    }
+    case SYS_WAIT:
+    {
+        tid_t pid = (unsigned int)(*((int*)f->esp + 1));
+        f->eax = wait(pid);
+        break;
+    }
+    case SYS_CREATE:
+    {
+        // Call to create function
+        break;
+    }
+    case SYS_REMOVE:
+    {
+        // Call to remove function
+        break;
+    }
+    case SYS_OPEN:
+    {
+        // Call to open function
+        break;
+    }
+    case SYS_FILESIZE:
+    {
+        // Call to filesize function
+        break;
+    }
+    case SYS_READ:
+    {
+        // Call to read function
+        break;
+    }
+    case SYS_WRITE:
+    {
+        // Call to write function
+        break;
+    }
+    case SYS_SEEK:
+    {
+        // Call to seek function
+        break;
+    }
+    case SYS_TELL:
+    {
+        // Call to tell function
+        break;
+    }
+    case SYS_CLOSE:
+    {
+        // Call to close function
+        break;
+    }
+  }
   thread_exit ();
 }
 
-
-void
-exit(int status){
-	struct thread * current_thread = thread_current();
-	current_thread->exit_status = status;
-	thread_exit();
+static void
+halt(void) {
+  shutdown_power_off();
 }
 
-int
-wait (tid_t pid){
-	return process_wait (pid);
+static void
+exit(int status) {
+    struct thread * current_thread = thread_current();
+    current_thread->exit_status = status;
+    thread_exit();
+}
+
+static int
+wait (tid_t pid) {
+    return process_wait (pid);
 }
