@@ -12,6 +12,7 @@
 
 #define MAX_ARGS 3
 #define USER_VADDR_BOTTOM ((void *) 0x08048000)
+#include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
 void halt(void);
@@ -39,7 +40,7 @@ syscall_handler (struct intr_frame *f)
   int arg[MAX_ARGS];
   check_valid_ptr((const void*)f->esp);
   int syscall_number = *(int*)f->esp;
-  printf ("System Call! Number: %d \n", syscall_number);
+  //printf ("System Call! Number: %d \n", syscall_number);
   switch(syscall_number) {
     case SYS_HALT:
     {
@@ -48,7 +49,7 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_EXIT:
     {
-        printf("Calling exit\n");
+        //printf("Calling exit\n");
         //check_addr((int*)f->esp + 1);
         //int status = *((int*)f->esp + 1);
         get_arg(f, &arg[0], 1);
@@ -64,7 +65,7 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_WAIT:
     {
-        printf("Calling Wait\n");
+        //printf("Calling Wait\n");
         //check_addr((int*)f->esp + 1);
         //tid_t pid = (unsigned int)(*((int*)f->esp + 1));
         //f->eax = wait(pid);
@@ -99,7 +100,7 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_WRITE:
     {
-        printf("Calling write\n");
+        //printf("Calling write\n");
         /*check_addr((int*)f->esp + 1);
         int fd = *((int*)f->esp + 1);
         check_addr((int*)f->esp + 2);

@@ -41,12 +41,9 @@ static void parse_args(struct process_info *proc, void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-  printf("file and arguments are: %s \n", file_name);
+  //printf("file and arguments are: %s \n", file_name);
 
-  //char *fn_copy;
   tid_t tid;
-  //Obtains a single free page and returns its kernel virtual address for process_info
-  //struct process_info *proc = palloc_get_page(0);
   struct process_info *proc = malloc(sizeof(struct process_info));
   if(proc == NULL) {
     return TID_ERROR;
@@ -58,13 +55,6 @@ process_execute (const char *file_name)
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  /*fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
-    return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);*/
-
-  /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load().*/
   proc->args_copy = palloc_get_page(0);
   if(proc->args_copy == NULL) {
     free(proc);
@@ -72,9 +62,7 @@ process_execute (const char *file_name)
   }
   strlcpy(proc->args_copy, file_name, PGSIZE);
   //Extract file name from char *file_name
-  //char *first_space = strchr(file_name,' ');
-  //size_t length = sizeof(char)*(first_space - file_name);
-  size_t file_name_size = strcspn(file_name, " ");
+  /*size_t file_name_size = strcspn(file_name, " ");
   printf("file length %d.\n", file_name_size);
   size_t length = sizeof(char)*(file_name_size+1);
   char *exec_name = malloc(length);
@@ -92,14 +80,28 @@ process_execute (const char *file_name)
   //char *save_ptr;
   //proc->exec_name = strtok_r(proc->args_copy, " ", &save_ptr);
   printf("exec_name %s.\n", proc->exec_name);
-  printf("90\n");
+  printf("90\n");*/
+
+  char *token, *save_ptr;
+  int i = 0;
+  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
+       token = strtok_r (NULL, " ", &save_ptr)) {
+    proc->argc++;
+    if (i == 0) {
+      proc->exec_name = token;
+    }
+    i++;
+  }
+
   // Create a new thread to execute FILE_NAME.
   tid = thread_create (proc->exec_name, PRI_DEFAULT, start_process, proc);
-  printf("93\n");
+  
+  //printf("93\n");
+  
   sema_down(&proc->loaded);
   if (proc->load_success == false) tid = TID_ERROR;
   palloc_free_page (proc->args_copy);
-  free(exec_name);
+  //free(exec_name);
   free(proc);
   
   return tid;
@@ -110,7 +112,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  printf("107\n");
+  //printf("107\n");
   //printf("exec_name: %p.\n", file_name_);
   //typecast void pointer to struct process_info
   struct process_info *proc = (struct process_info *) file_name_ ;
@@ -133,8 +135,12 @@ start_process (void *file_name_)
 
   //palloc_free_page(proc);
   /* If load failed, quit. */
+  //printf("\n128");
+
+  /* If load failed, allow writes and then quit. */
   if (!success) {
-    thread_exit ();
+    //thread_current()->exit_status = -1;
+    thread_exit();
   }
 
   /* Start the user process by simulating a return from an
@@ -143,8 +149,11 @@ start_process (void *file_name_)
      arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
+  //printf("\n141");
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
+  //printf("\n143");
   NOT_REACHED ();
+  //printf("\n145");
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -168,7 +177,7 @@ process_wait (tid_t child_tid)
   while(!cp->exit) barrier();
   int status = cp->status;
   remove_child_process(cp);
-  printf("Exiting process wait\n");
+  //printf("Exiting process wait\n");
   //while(true) {
   //  thread_yield();
   //}
@@ -295,58 +304,78 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  parse_args(struct process_info *proc, void **esp) {
 
   /* Build up the index of where text is located */
-  printf("in parse args\n");
-  proc->argc = 0;
+  //printf("in parse args\n");
+  /*proc->argc = 0;
   char *token, *save_ptr;
   for(token = strtok_r(proc->args_copy, " ",&save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
     proc->argc++;
-  }
-  printf("argc: %d\n", proc->argc);
-  char *argv[proc->argc];
+  }*/
+  //printf("argc: %d\n", proc->argc);
+  /*char *argv[proc->argc];
   char *cur_str = proc->args_copy;
   int i;
   for (i = 0; i < proc->argc; i++)
   {  
     *esp -= strlen(cur_str) + 1;
-    memcpy(*esp, (void *)cur_str, strlen(cur_str) + 1);
+    memcpy(*esp, cur_str, strlen(cur_str) + 1);
     cur_str = strchr(cur_str, '\0') + 1;
     //skip all ' '
     while (*cur_str == ' ') cur_str++;
     argv[i] = *esp;
-  }
-  printf("PHYS_BASE: %p\n", PHYS_BASE);
+  }*/
+  int i;
+  char *token, *save_ptr;
+  int *argv = calloc(proc->argc,sizeof(int));
+
+  for (token = strtok_r (proc->args_copy, " ", &save_ptr),i=0; token != NULL;
+    token = strtok_r (NULL, " ", &save_ptr),i++)
+    {
+      *esp -= strlen(token) + 1;
+      memcpy(*esp,token,strlen(token) + 1);
+
+      argv[i]=*esp;
+    }
   //pad to 4 bytes
-  for (i = 0; i < ((int)(*esp) % 4); i++)
+   while((int)*esp%4!=0)
+  {
+    *esp-=sizeof(char);
+    char x = 0;
+    memcpy(*esp,&x,sizeof(char));
+  }
+  /*for (i = 0; i < ((int)(*esp) % 4); i++)
   {
     char ch = 0;
-    *esp -= sizeof(ch);
-    memcpy(*esp, (void *)&ch, sizeof(ch));
-  }
-  printf("Zero\n");
+    *esp -= sizeof(char);
+    memcpy(*esp, &ch, sizeof(char));
+  }*/
+  //printf("Zero\n");
   //push the reference to arguments in reverse
   int zero = 0;
   //start with a null pointer at args[argc]
-  *esp -= sizeof(zero);
-  memcpy(*esp, (void *)&zero, sizeof(zero));
+  *esp -= sizeof(int);
+  memcpy(*esp, &zero, sizeof(int));
 
   for (i = proc->argc - 1; i >= 0; i--)
   {
-    *esp -= sizeof(char *);
-    memcpy(*esp, (void *)&argv, sizeof(char *));
+    *esp -= sizeof(int);
+    memcpy(*esp, &argv[i], sizeof(int));
 
   }
-  printf("Address of first\n");
-  void *saved_esp = *esp;
-  *esp -= sizeof(void *);
-  memcpy(*esp, saved_esp, sizeof(void *));
-  *esp -= sizeof(proc->argc);
-  memcpy(*esp, (void *)&proc->argc, sizeof(proc->argc));
-  // Push return address
-  *esp -= sizeof(zero);
-  memcpy(*esp, (void *)&zero, sizeof(zero));
-  printf("Done parsing arguments\n");
 
-  hex_dump(0, *esp, (int) ((size_t) PHYS_BASE - (size_t) *esp), true);
+  //printf("Address of first\n");
+  //void *saved_esp = *esp;
+  int pt = *esp;
+  *esp -= sizeof(int);
+  memcpy(*esp, &pt, sizeof(int));
+  *esp -= sizeof(int);
+  memcpy(*esp, &(proc->argc), sizeof(int));
+  // Push return address
+  *esp -= sizeof(int);
+  memcpy(*esp, &zero, sizeof(int));
+  //printf("Done parsing arguments\n");
+
+  //hex_dump(*esp,*esp,PHYS_BASE-(*esp),true);
+  //hex_dump(0, *esp, (int) ((size_t) PHYS_BASE - (size_t) *esp), true);
 
   }
 
@@ -372,7 +401,7 @@ load (struct process_info *proc, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  printf("364 in load exec_name: %s.\n", proc->exec_name);
+  //printf("364 in load exec_name: %s\n", proc->exec_name);
   file = filesys_open (proc->exec_name);
   if (file == NULL) 
     {
@@ -452,25 +481,26 @@ load (struct process_info *proc, void (**eip) (void), void **esp)
         }
     }
 
-   printf("Got to setup stack"); 
+   //printf("Got to setup stack"); 
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
 
   /* Parse arguments to the stack*/
-  printf("Got to args passing"); 
+  //printf("Got to args passing"); 
   parse_args(proc, esp);
-
+  //printf("443");
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-
+  //printf("448");
  done:
   /* We arrive here whether the load is successful or not. */
   proc->load_success = success;
   sema_up(&proc->loaded);
   file_close (file);
+  //printf("454");
   return success;
 }
 
