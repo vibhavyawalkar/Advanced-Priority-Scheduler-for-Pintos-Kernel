@@ -104,7 +104,7 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    int exit_status;
+    //int exit_status;
 #endif
 
 /*priority data*/
@@ -118,6 +118,11 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+    // Wait/Exec sys calls
+    struct list child_list;
+    tid_t parent;
+    // Struct to store info about the child process
+    struct child *c;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -174,4 +179,6 @@ void increment_recent_cpu(void);
 void calculate_recent_cpu(struct thread *t, void *aux);
 void calculate_recent_cpu_for_each_thread(void);
 void yield_max_priority_thread(void);
+
+bool thread_alive(int pid);
 #endif /* threads/thread.h */

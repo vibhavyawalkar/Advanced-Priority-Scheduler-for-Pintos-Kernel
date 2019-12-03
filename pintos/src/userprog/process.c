@@ -18,6 +18,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 
@@ -125,7 +126,12 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
 
   success = load (proc, &if_.eip, &if_.esp);
+  if(success)
+    thread_current()->c->load = LOAD_SUCCESS;
+  else
+    thread_current()->c->load = LOAD_FAIL;
 
+  //palloc_free_page(proc);
   /* If load failed, quit. */
   if (!success) {
     thread_exit ();
@@ -151,13 +157,22 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
   //TODO: Implement
-  //Infinite Loop For now.
-  printf("Entering Infinite Loop");
-  while(true) ;
-  return -1;
+  //Infinite Loop For now
+  struct child *cp = get_child_process(child_tid);
+  if(!cp) return ERROR;
+  if(cp->wait) return ERROR;
+  cp->wait = true;
+  while(!cp->exit) barrier();
+  int status = cp->status;
+  remove_child_process(cp);
+  printf("Exiting process wait\n");
+  //while(true) {
+  //  thread_yield();
+  //}
+  return status;
 }
 
 /* Free the current process's resources. */
@@ -167,6 +182,11 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  remove_child_processes();
+
+  if(thread_alive(cur->parent)) cur->c->exit = true;
+
+  
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
