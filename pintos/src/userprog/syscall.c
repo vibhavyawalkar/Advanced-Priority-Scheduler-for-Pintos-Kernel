@@ -6,6 +6,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/init.h"
+#include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
 static void halt(void);
