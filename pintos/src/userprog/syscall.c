@@ -9,12 +9,13 @@
 #include "threads/init.h"
 #include "threads/malloc.h"
 #include "userprog/pagedir.h"
-
+#include "filesys/filesys.h"
 #define MAX_ARGS 3
 #define USER_VADDR_BOTTOM ((void *) 0x08048000)
 #include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
+bool create(const char *file, unsigned initial_size);
 void halt(void);
 void exit(int status);
 void * check_addr(const void*);
@@ -75,6 +76,10 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_CREATE:
     {
+    	get_arg(f, &arg[0],2);
+    	arg[0] = user_to_kernel_ptr((const void*) arg[0]);
+    	f->eax = create((const char*)arg[0], (unsigned)arg[1]);
+
         // Call to create function
         break;
     }
@@ -164,6 +169,11 @@ exec(const char *cmd_line)
 int
 wait(tid_t pid) {
     return process_wait (pid);
+}
+bool 
+create(const char *file, unsigned initial_size){
+	bool is_create = filesys_create(file, initial_size);
+	return is_create;
 }
 
 int
