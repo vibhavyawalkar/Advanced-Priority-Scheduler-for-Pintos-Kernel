@@ -25,6 +25,9 @@ int open (const char *file);
 int filesize (int fd);
 int read (int fd, void *buffer, unsigned size);
 int write(int fd, const void *buffer, unsigned int count);
+void seek (int fd, unsigned position);
+void close(int fd);
+unsigned tell (int fd);
 struct file_doc* retrieve_file(int fd);
 void get_arg (struct intr_frame *f, int *arg, int n);
 void check_valid_buffer (void* buffer, unsigned size);
@@ -141,16 +144,22 @@ syscall_handler (struct intr_frame *f)
     case SYS_SEEK:
     {
         // Call to seek function
+        get_arg(f, &arg[0], 2);
+        seek((int) arg[0], (unsigned) arg[1]);
         break;
     }
     case SYS_TELL:
     {
         // Call to tell function
+        get_arg(f, &arg[0], 1);
+        f->eax = tell((int) arg[0]);
         break;
     }
     case SYS_CLOSE:
     {
         // Call to close function
+        get_arg(f, &arg[0], 1);
+        close((int) arg[0]);
         break;
     }
   }
@@ -197,11 +206,15 @@ create(const char *file, unsigned initial_size){
 
 int
 write(int fd, const void *buffer, unsigned int count) {
-    if(fd == 1) {
+	if(fd == 1) {
          putbuf(buffer, count);
          return count;
-     }
-     return count;
+    }
+    struct file_doc* fd_doc = retrieve_file(fd);
+	if (fd_doc == NULL){
+	 	return -1;
+	}
+    return file_write(fd_doc->p, buffer, count);
 }
 
 bool
@@ -244,6 +257,29 @@ read (int fd, void *buffer, unsigned size){
 	}
 	return file_read(fd_doc->p, buffer, size);
 
+}
+void 
+seek(int fd, unsigned position){
+	struct file_doc* fd_doc = retrieve_file(fd);
+	if (fd_doc == NULL){
+		return;
+	}
+	return file_seek(fd_doc->p, position);
+}
+unsigned 
+tell (int fd) {
+	struct file_doc* fd_doc = retrieve_file(fd);
+	if (fd_doc == NULL){
+		return -1;
+	}
+	return file_tell(fd_doc->p);
+}
+void close (int fd){
+	struct file_doc* fd_doc = retrieve_file(fd);
+	if (fd_doc == NULL){
+		return -1;
+	}
+	return file_close(fd_doc->p);
 }
 
 struct file_doc* retrieve_file(int fd){
