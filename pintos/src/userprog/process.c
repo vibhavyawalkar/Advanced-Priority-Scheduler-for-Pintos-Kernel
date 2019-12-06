@@ -265,18 +265,16 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  static void 
  parse_args(struct process_info *proc, void **esp) {
 
-  char *argv[proc->argc];
-  char *cur_str = proc->args_copy;
+  char *token, *save_ptr;
+  int *argv = calloc(proc->argc,sizeof(int));
   int i;
-  for (i = 0; i < proc->argc; i++)
-  {  
-    *esp -= strlen(cur_str) + 1;
-    memcpy(*esp, cur_str, strlen(cur_str) + 1);
-    cur_str = strchr(cur_str, '\0') + 1;
-    //skip all ' '
-    while (*cur_str == ' ') cur_str++;
+  for(token = strtok_r(proc->args_copy, " ", &save_ptr),i=0; token != NULL; token = strtok_r(NULL, " ", &save_ptr), i++) {
+    *esp -= strlen(token) + 1;
+    memcpy(*esp, token, strlen(token)+1);
+
     argv[i] = *esp;
   }
+
   //pad to 4 bytes
    while((int)*esp%4!=0)
   {
