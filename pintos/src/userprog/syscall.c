@@ -14,6 +14,8 @@
 #define USER_VADDR_BOTTOM ((void *) 0x08048000)
 #include "devices/shutdown.h"
 
+void file_lock_acquire();
+void file_lock_release();
 static void syscall_handler (struct intr_frame *);
 void halt(void);
 void exit(int status);
@@ -34,6 +36,18 @@ void check_valid_buffer (void* buffer, unsigned size);
 int user_to_kernel_ptr(const void *vaddr);
 void check_valid_ptr (const void *vaddr);
 
+static struct lock file_lock;
+
+void 
+file_lock_acquire(){
+	lock_acquire(&file_lock);
+}
+
+void
+file_lock_release(){
+	lock_release(&file_lock);
+}
+
 void
 syscall_init (void) 
 {
@@ -49,6 +63,7 @@ syscall_handler (struct intr_frame *f)
   int arg[MAX_ARGS];
   check_valid_ptr((const void*)f->esp);
   int syscall_number = *(int*)f->esp;
+  lock_init(&file_lock);
   //printf ("System Call! Number: %d \n", syscall_number);
   switch(syscall_number) {
     case SYS_HALT:
@@ -200,7 +215,9 @@ wait(tid_t pid) {
 }
 bool 
 create(const char *file, unsigned initial_size){
+	file_lock_acquire();
 	bool is_create = filesys_create(file, initial_size);
+	file_lock_release();
 	return is_create;
 }
 
@@ -214,18 +231,27 @@ write(int fd, const void *buffer, unsigned int count) {
 	if (fd_doc == NULL){
 	 	return -1;
 	}
-    return file_write(fd_doc->p, buffer, count);
+
+	file_lock_acquire();
+	int write_len = file_write(fd_doc->p, buffer, count);
+	file_lock_release();
+    return write_len;
 }
 
 bool
 remove(const char *file){
+	file_lock_acquire();
 	bool is_remove = filesys_remove(file);
+	file_lock_release();
 	return is_remove;
 }
 
 int
 open (const char *file){
+
+	file_lock_acquire();
 	struct file *return_file = filesys_open(file);
+	file_lock_release();
 	if (return_file == NULL)
 		return -1;
 
@@ -243,7 +269,10 @@ int filesize (int fd){
 	if (fd_doc == NULL){
 		return -1;
 	}
-	return file_length(fd_doc->p);
+	file_lock_acquire();
+	int size = file_length(fd_doc->p);
+	file_lock_release();
+	return size;
 }
 
 int
@@ -255,16 +284,22 @@ read (int fd, void *buffer, unsigned size){
 	if (fd_doc == NULL){
 		return -1;
 	}
-	return file_read(fd_doc->p, buffer, size);
+	file_lock_acquire();
+	int read_len = file_read(fd_doc->p, buffer, size);
+	file_lock_release();
+	return read_len;
 
 }
 void 
 seek(int fd, unsigned position){
 	struct file_doc* fd_doc = retrieve_file(fd);
 	if (fd_doc == NULL){
-		return;
+		return -1;
 	}
-	return file_seek(fd_doc->p, position);
+	file_lock_acquire();
+	file_seek(fd_doc->p, position);
+	file_lock_release();
+	return;
 }
 unsigned 
 tell (int fd) {
@@ -272,14 +307,22 @@ tell (int fd) {
 	if (fd_doc == NULL){
 		return -1;
 	}
-	return file_tell(fd_doc->p);
+	file_lock_acquire();
+	unsigned index = file_tell(fd_doc->p);
+	file_lock_release();
+	return index;
 }
 void close (int fd){
 	struct file_doc* fd_doc = retrieve_file(fd);
 	if (fd_doc == NULL){
 		return -1;
 	}
-	return file_close(fd_doc->p);
+	file_lock_acquire();
+	file_close(fd_doc->p);
+	list_remove(&fd_doc->e);
+	free(fd_doc);
+	file_lock_release();
+	return;
 }
 
 struct file_doc* retrieve_file(int fd){
