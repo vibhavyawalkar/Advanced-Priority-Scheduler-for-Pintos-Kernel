@@ -15,12 +15,17 @@
 #include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
-bool create(const char *file, unsigned initial_size);
 void halt(void);
 void exit(int status);
 void * check_addr(const void*);
 int wait(tid_t pid);
+bool create(const char *file, unsigned initial_size);
+bool remove(const char *file);
+int open (const char *file);
+int filesize (int fd);
+int read (int fd, void *buffer, unsigned size);
 int write(int fd, const void *buffer, unsigned int count);
+struct file_doc* retrieve_file(int fd);
 void get_arg (struct intr_frame *f, int *arg, int n);
 void check_valid_buffer (void* buffer, unsigned size);
 int user_to_kernel_ptr(const void *vaddr);
@@ -86,21 +91,35 @@ syscall_handler (struct intr_frame *f)
     case SYS_REMOVE:
     {
         // Call to remove function
+        get_arg(f, &arg[0],1);
+        arg[0] = user_to_kernel_ptr((const void*) arg[0]);
+        f->eax = remove((const char*)arg[0]);
         break;
     }
     case SYS_OPEN:
     {
         // Call to open function
+        get_arg(f, &arg[0],1);
+        arg[0] = user_to_kernel_ptr((const void*) arg[0]);
+        f->eax = open((const char*)arg[0]);
         break;
     }
     case SYS_FILESIZE:
     {
         // Call to filesize function
+        get_arg(f, &arg[0],1);
+        int * p = f->esp;
+        // arg[0] = user_to_kernel_ptr((const void*) (p+1));
+        f->eax = filesize((int) arg[0]);
         break;
     }
     case SYS_READ:
     {
         // Call to read function
+        get_arg(f, &arg[0],3);
+        check_valid_buffer((void*) arg[1], (unsigned int) arg[2]);
+        arg[1] = user_to_kernel_ptr((const void*)arg[1]);
+        f->eax = read((int) arg[0], (void*) arg[1], (unsigned) arg[2]);
         break;
     }
     case SYS_WRITE:
@@ -117,7 +136,7 @@ syscall_handler (struct intr_frame *f)
         check_valid_buffer((void*) arg[1], (unsigned int) arg[2]);
         arg[1] = user_to_kernel_ptr((const void*)arg[1]);
         f->eax = write(arg[0], (const void*) arg[1], (unsigned int)arg[2]);
-        break;
+         break;
     }
     case SYS_SEEK:
     {
@@ -184,6 +203,60 @@ write(int fd, const void *buffer, unsigned int count) {
      }
      return count;
 }
+
+bool
+remove(const char *file){
+	bool is_remove = filesys_remove(file);
+	return is_remove;
+}
+
+int
+open (const char *file){
+	struct file *return_file = filesys_open(file);
+	if (return_file == NULL)
+		return -1;
+
+	struct file_doc *fd_doc = malloc(sizeof(struct file_doc));
+	fd_doc->p = return_file;
+
+	int id = ++thread_current()->total_fd_id;
+	fd_doc->id = id;
+	list_insert(list_tail(&thread_current()->file_list), &fd_doc->e);
+	// list_push_front(&thread_current()->file_list, &fd_doc->e);
+	return id;
+}
+int filesize (int fd){
+	struct file_doc* fd_doc = retrieve_file(fd);
+	if (fd_doc == NULL){
+		return -1;
+	}
+	return file_length(fd_doc->p);
+}
+
+int
+read (int fd, void *buffer, unsigned size){
+	if (fd == 0){
+		return input_getc();
+	}
+	struct file_doc* fd_doc = retrieve_file(fd);
+	if (fd_doc == NULL){
+		return -1;
+	}
+	return file_read(fd_doc->p, buffer, size);
+
+}
+
+struct file_doc* retrieve_file(int fd){
+	struct list_elem *e;
+  	for (e = list_begin(&thread_current()->file_list); e != list_end(&thread_current()->file_list); e = list_next(e)) {
+  		struct file_doc *cur = list_entry(e, struct file_doc, e);
+  		if (cur->id == fd) {
+  			return cur;
+  		} 
+  	}
+  	return NULL;
+}
+
 
 void check_valid_ptr (const void *vaddr)
 {

@@ -100,11 +100,14 @@ struct thread
     struct semaphore t_sema;            /* semaphore for putting thread to sleep and wake them up */
     struct list_elem t_elem;            /* list element for waiting queue */
     int64_t wakeup_time;                /* 64bit integer - record the wakeup time */
+    int total_fd_id;
+    struct list file_list;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
     //int exit_status;
+
 #endif
 
 /*priority data*/

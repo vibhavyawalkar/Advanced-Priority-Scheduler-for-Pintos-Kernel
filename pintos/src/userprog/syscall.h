@@ -2,7 +2,7 @@
 #define USERPROG_SYSCALL_H
 
 #include "threads/synch.h"
-
+#include "lib/kernel/list.h"
 #define CLOSE_ALL -1
 #define ERROR -1
 
@@ -19,6 +19,14 @@ int status;
 struct lock wait_lock;
 struct list_elem elem;
 };
+
+struct file_doc
+{
+	struct list_elem e;
+	struct file* p;
+	int id;
+};
+
 
 struct child* add_child_process(int pid);
 
