@@ -423,12 +423,14 @@ load (struct process_info *proc, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
+  file_deny_write(file);
   //printf("448");
  done:
   /* We arrive here whether the load is successful or not. */
   proc->load_success = success;
   sema_up(&proc->loaded);
-  file_close (file);
+  if (success != true)
+    file_close (file);
   return success;
 }
 

@@ -200,7 +200,6 @@ exec(const char *cmd_line)
 {
   pid_t pid = process_execute(cmd_line);
   struct child *cp = get_child_process(pid);
-
   if(cp == NULL) return ERROR;
 
   while(cp->load == NOT_LOADED)
@@ -233,14 +232,12 @@ write(int fd, const void *buffer, unsigned int count) {
          putbuf(buffer, count);
          return count;
     }
-    file_lock_acquire();
     struct file_doc* fd_doc = retrieve_file(fd);
 	if (fd_doc == NULL){
-                file_lock_release();
 	 	return -1;
 	}
 
-	//file_lock_acquire();
+	file_lock_acquire();
 	int write_len = file_write(fd_doc->p, buffer, count);
 	file_lock_release();
     return write_len;
