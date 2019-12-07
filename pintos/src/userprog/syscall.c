@@ -52,6 +52,7 @@ file_lock_release(){
 void
 syscall_init (void) 
 {
+  lock_init(&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -63,7 +64,7 @@ syscall_handler (struct intr_frame *f)
   int arg[MAX_ARGS];
   //check_valid_ptr((const void*)f->esp);
   int syscall_number = user_to_kernel_ptr((const void *)f->esp);
-  lock_init(&file_lock);
+  //lock_init(&file_lock);
   //printf ("System Call! Number: %d \n", syscall_number);
   switch(*(int *)syscall_number) {
     case SYS_HALT:

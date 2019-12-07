@@ -331,6 +331,7 @@ load (struct process_info *proc, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  lock_acquire(&file_lock);
   /* Open executable file. */
   file = filesys_open (proc->exec_name);
   if (file == NULL) 
@@ -429,6 +430,7 @@ load (struct process_info *proc, void (**eip) (void), void **esp)
   sema_up(&proc->loaded);
   if (success != true)
     file_close (file);
+  lock_release(&file_lock);
   return success;
 }
 
