@@ -151,6 +151,7 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  if(cur->executable) file_close(cur->executable);
   remove_child_processes();
 
   // Set exit value to true if the exit is due to a kill by kernel
@@ -410,21 +411,18 @@ load (struct process_info *proc, void (**eip) (void), void **esp)
         }
     }
 
-   //printf("Got to setup stack"); 
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
 
   /* Parse arguments to the stack*/
-  //printf("Got to args passing"); 
   parse_args(proc, esp);
-  //printf("443");
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
   file_deny_write(file);
-  //printf("448");
+  t->executable = file;
  done:
   /* We arrive here whether the load is successful or not. */
   proc->load_success = success;
@@ -433,7 +431,7 @@ load (struct process_info *proc, void (**eip) (void), void **esp)
     file_close (file);
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
