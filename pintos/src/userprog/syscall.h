@@ -16,7 +16,8 @@ int load;
 bool wait;
 bool exit;
 int status;
-struct lock wait_lock;
+struct semaphore load_sema;
+struct semaphore exit_sema;
 struct list_elem elem;
 };
 
@@ -27,6 +28,7 @@ struct file_doc
 	int id;
 };
 
+struct lock file_lock;
 
 struct child* add_child_process(int pid);
 

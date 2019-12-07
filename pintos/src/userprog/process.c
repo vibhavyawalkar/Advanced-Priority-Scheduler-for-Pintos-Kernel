@@ -133,13 +133,11 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  //TODO: Implement
   //Infinite Loop For now
   struct child *cp = get_child_process(child_tid);
   if(!cp) return ERROR;
   if(cp->wait) return ERROR;
-  cp->wait = true;
-  while(!cp->exit) barrier();
+  while(!cp->exit) sema_down(&cp->exit_sema);
   int status = cp->status;
   remove_child_process(cp);
 
@@ -155,7 +153,11 @@ process_exit (void)
 
   remove_child_processes();
 
-  if(thread_alive(cur->parent)) cur->c->exit = true;
+  // Set exit value to true if the exit is due to a kill by kernel
+  if(thread_alive(cur->parent) && cur->c) {
+     cur->c->exit = true;
+     sema_up(&cur->c->exit_sema);
+   }
 
   
   /* Destroy the current process's page directory and switch back
@@ -329,13 +331,12 @@ load (struct process_info *proc, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  //printf("364 in load exec_name: %s\n", proc->exec_name);
   file = filesys_open (proc->exec_name);
   if (file == NULL) 
-    {
+  {
       printf ("load: %s: open failed\n", proc->exec_name);
       goto done;
-    }
+  }
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -428,7 +429,6 @@ load (struct process_info *proc, void (**eip) (void), void **esp)
   proc->load_success = success;
   sema_up(&proc->loaded);
   file_close (file);
-  //printf("454");
   return success;
 }
 

@@ -35,8 +35,9 @@ void get_arg (struct intr_frame *f, int *arg, int n);
 void check_valid_buffer (void* buffer, unsigned size);
 int user_to_kernel_ptr(const void *vaddr);
 void check_valid_ptr (const void *vaddr);
+void check_valid_string(const void*str);
 
-static struct lock file_lock;
+//static struct lock file_lock;
 
 void 
 file_lock_acquire(){
@@ -55,17 +56,16 @@ syscall_init (void)
 }
 
 static void
-
 syscall_handler (struct intr_frame *f)
 {
   //if(f->esp == NULL && f->esp > PHYS_BASE)
     //exit(-1);
   int arg[MAX_ARGS];
-  check_valid_ptr((const void*)f->esp);
-  int syscall_number = *(int*)f->esp;
+  //check_valid_ptr((const void*)f->esp);
+  int syscall_number = user_to_kernel_ptr((const void *)f->esp);
   lock_init(&file_lock);
   //printf ("System Call! Number: %d \n", syscall_number);
-  switch(syscall_number) {
+  switch(*(int *)syscall_number) {
     case SYS_HALT:
     {
         halt();
@@ -83,6 +83,7 @@ syscall_handler (struct intr_frame *f)
     case SYS_EXEC:
     {
         get_arg(f, &arg[0], 1);
+        check_valid_string((const void*) arg[0]);
         arg[0] = user_to_kernel_ptr((const void*) arg[0]);
         f->eax = exec((const char*)arg[0]);
         break;
@@ -93,7 +94,7 @@ syscall_handler (struct intr_frame *f)
         //check_addr((int*)f->esp + 1);
         //tid_t pid = (unsigned int)(*((int*)f->esp + 1));
         //f->eax = wait(pid);
-        get_arg(f, &arg[0], 2);
+        get_arg(f, &arg[0], 1);
         f->eax = wait(arg[0]);
         break;
     }
@@ -188,8 +189,7 @@ halt(void) {
 void
 exit(int status) {
     struct thread * current_thread = thread_current();
-    //current_thread->exit_status = status;
-    if(thread_alive(current_thread->parent))
+    if(thread_alive(current_thread->parent) && current_thread->c)
       current_thread->c->status = status;
     printf ("%s: exit(%d)\n", current_thread->name, status);
     thread_exit();
@@ -200,12 +200,17 @@ exec(const char *cmd_line)
 {
   pid_t pid = process_execute(cmd_line);
   struct child *cp = get_child_process(pid);
-  ASSERT(cp);
+
+  if(cp == NULL) return ERROR;
+
   while(cp->load == NOT_LOADED)
-   barrier();
+    sema_down(&cp->load_sema);
+
   if(cp->load == LOAD_FAIL)
-   return ERROR;
-  
+  {
+    remove_child_process(cp);
+    return ERROR;
+  }
   return pid;
 }
 
@@ -213,6 +218,7 @@ int
 wait(tid_t pid) {
     return process_wait (pid);
 }
+
 bool 
 create(const char *file, unsigned initial_size){
 	file_lock_acquire();
@@ -227,12 +233,14 @@ write(int fd, const void *buffer, unsigned int count) {
          putbuf(buffer, count);
          return count;
     }
+    file_lock_acquire();
     struct file_doc* fd_doc = retrieve_file(fd);
 	if (fd_doc == NULL){
+                file_lock_release();
 	 	return -1;
 	}
 
-	file_lock_acquire();
+	//file_lock_acquire();
 	int write_len = file_write(fd_doc->p, buffer, count);
 	file_lock_release();
     return write_len;
@@ -347,8 +355,6 @@ void check_valid_ptr (const void *vaddr)
 
 int user_to_kernel_ptr(const void *vaddr)
 {
-  // TO DO: Need to check if all bytes within range are correct
-  // for strings + buffers
   check_valid_ptr(vaddr);
   void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
   if (!ptr)
@@ -372,7 +378,7 @@ void * check_addr(const void *vaddr)
      }
      return ptr;
 }
-
+/*
 struct child* add_child_process(int pid)
 {
   struct child *c = (struct child*)malloc(sizeof(struct child));
@@ -385,7 +391,7 @@ struct child* add_child_process(int pid)
 
   return c;
 }
-
+*/
 struct child* get_child_process(int pid)
 {
 
@@ -444,4 +450,10 @@ void check_valid_buffer (void* buffer, unsigned size)
       check_valid_ptr((const void*) local_buffer);
       local_buffer++;
     }
+}
+
+void check_valid_string(const void*str)
+{
+  while(*(char*) user_to_kernel_ptr(str) != 0)
+    str = (char*) str +1;
 }

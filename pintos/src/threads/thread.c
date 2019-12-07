@@ -215,7 +215,8 @@ thread_create (const char *name, int priority,
   c->load = NOT_LOADED;
   c->wait = false;
   c->exit = false;
-  lock_init(&c->wait_lock);
+  sema_init(&c->load_sema, 0);
+  sema_init(&c->exit_sema, 0);
   list_push_back(&thread_current()->child_list, &c->elem);
 
   t->c = c;
@@ -715,6 +716,8 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init (&t->t_sema, 0);
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
+
+  t->executable = NULL;
 
   list_init(&t->child_list);
   t->c = NULL;

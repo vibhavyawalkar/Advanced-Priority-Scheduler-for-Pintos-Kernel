@@ -126,6 +126,7 @@ struct thread
     tid_t parent;
     // Struct to store info about the child process
     struct child *c;
+    struct file * executable;
   };
 
 /* If false (default), use round-robin scheduler.
