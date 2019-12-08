@@ -19,7 +19,6 @@ void file_lock_release();
 static void syscall_handler (struct intr_frame *);
 void halt(void);
 void exit(int status);
-void * check_addr(const void*);
 int wait(tid_t pid);
 bool create(const char *file, unsigned initial_size);
 bool remove(const char *file);
@@ -36,8 +35,6 @@ void check_valid_buffer (void* buffer, unsigned size);
 int user_to_kernel_ptr(const void *vaddr);
 void check_valid_ptr (const void *vaddr);
 void check_valid_string(const void*str);
-
-//static struct lock file_lock;
 
 void 
 file_lock_acquire(){
@@ -59,13 +56,8 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f)
 {
-  //if(f->esp == NULL && f->esp > PHYS_BASE)
-    //exit(-1);
   int arg[MAX_ARGS];
-  //check_valid_ptr((const void*)f->esp);
   int syscall_number = user_to_kernel_ptr((const void *)f->esp);
-  //lock_init(&file_lock);
-  //printf ("System Call! Number: %d \n", syscall_number);
   switch(*(int *)syscall_number) {
     case SYS_HALT:
     {
@@ -74,9 +66,6 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_EXIT:
     {
-        //printf("Calling exit\n");
-        //check_addr((int*)f->esp + 1);
-        //int status = *((int*)f->esp + 1);
         get_arg(f, &arg[0], 1);
         exit(arg[0]);
         break;
@@ -91,10 +80,6 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_WAIT:
     {
-        //printf("Calling Wait\n");
-        //check_addr((int*)f->esp + 1);
-        //tid_t pid = (unsigned int)(*((int*)f->esp + 1));
-        //f->eax = wait(pid);
         get_arg(f, &arg[0], 1);
         f->eax = wait(arg[0]);
         break;
@@ -104,13 +89,10 @@ syscall_handler (struct intr_frame *f)
     	get_arg(f, &arg[0],2);
     	arg[0] = user_to_kernel_ptr((const void*) arg[0]);
     	f->eax = create((const char*)arg[0], (unsigned)arg[1]);
-
-        // Call to create function
         break;
     }
     case SYS_REMOVE:
     {
-        // Call to remove function
         get_arg(f, &arg[0],1);
         arg[0] = user_to_kernel_ptr((const void*) arg[0]);
         f->eax = remove((const char*)arg[0]);
@@ -118,7 +100,6 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_OPEN:
     {
-        // Call to open function
         get_arg(f, &arg[0],1);
         arg[0] = user_to_kernel_ptr((const void*) arg[0]);
         f->eax = open((const char*)arg[0]);
@@ -126,16 +107,13 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_FILESIZE:
     {
-        // Call to filesize function
         get_arg(f, &arg[0],1);
         int * p = f->esp;
-        // arg[0] = user_to_kernel_ptr((const void*) (p+1));
         f->eax = filesize((int) arg[0]);
         break;
     }
     case SYS_READ:
     {
-        // Call to read function
         get_arg(f, &arg[0],3);
         check_valid_buffer((void*) arg[1], (unsigned int) arg[2]);
         arg[1] = user_to_kernel_ptr((const void*)arg[1]);
@@ -144,14 +122,6 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_WRITE:
     {
-        //printf("Calling write\n");
-        /*check_addr((int*)f->esp + 1);
-        int fd = *((int*)f->esp + 1);
-        check_addr((int*)f->esp + 2);
-        void *buffer = (void*)(*((int*)f->esp + 2));
-        check_addr((int*)f->esp + 3);
-        unsigned int size = *((unsigned int*)f->esp + 3);
-        f->eax = write(fd, buffer, size); */
         get_arg(f, &arg[0], 3);
         check_valid_buffer((void*) arg[1], (unsigned int) arg[2]);
         arg[1] = user_to_kernel_ptr((const void*)arg[1]);
@@ -160,21 +130,18 @@ syscall_handler (struct intr_frame *f)
     }
     case SYS_SEEK:
     {
-        // Call to seek function
         get_arg(f, &arg[0], 2);
         seek((int) arg[0], (unsigned) arg[1]);
         break;
     }
     case SYS_TELL:
     {
-        // Call to tell function
         get_arg(f, &arg[0], 1);
         f->eax = tell((int) arg[0]);
         break;
     }
     case SYS_CLOSE:
     {
-        // Call to close function
         get_arg(f, &arg[0], 1);
         close((int) arg[0]);
         break;
@@ -272,7 +239,6 @@ open (const char *file){
 	int id = ++thread_current()->total_fd_id;
 	fd_doc->id = id;
 	list_insert(list_tail(&thread_current()->file_list), &fd_doc->e);
-	// list_push_front(&thread_current()->file_list, &fd_doc->e);
 	return id;
 }
 int filesize (int fd){
@@ -368,34 +334,6 @@ int user_to_kernel_ptr(const void *vaddr)
   return (int) ptr;
 }
 
-void * check_addr(const void *vaddr)
-{
-    if(!is_user_vaddr(vaddr)) {
-        exit(-1);
-        return 0;
-     }
-
-     void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
-     if(!ptr) {
-        exit(-1);
-        return 0;
-     }
-     return ptr;
-}
-/*
-struct child* add_child_process(int pid)
-{
-  struct child *c = (struct child*)malloc(sizeof(struct child));
-  c->pid = pid;
-  c->load = NOT_LOADED;
-  c->wait = false;
-  c->exit = false;
-  lock_init(&c->wait_lock);
-  list_push_back(&thread_current()->child_list, &c->elem);
-
-  return c;
-}
-*/
 struct child* get_child_process(int pid)
 {
 
