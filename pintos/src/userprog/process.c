@@ -153,6 +153,19 @@ process_exit (void)
   uint32_t *pd;
 
   lock_acquire(&file_lock);
+
+  // close all the child process
+  struct thread *t = thread_current();
+  struct list_elem *next, *e = list_begin(&t->file_list);
+  while (e != list_end (&t->file_list)){
+    next = list_next(e);
+    struct file_doc* pf = list_entry(e, struct file_doc, e);
+    file_close(pf->p);
+    list_remove(&pf->e);
+    free(pf);
+    e = next;
+  }
+
   if(cur->executable) file_close(cur->executable);
   lock_release(&file_lock);
   remove_child_processes();

@@ -204,7 +204,6 @@ exec(const char *cmd_line)
   if(cp == NULL) {
   	return ERROR;
   }
-
   while(cp->load == NOT_LOADED){
     sema_down(&cp->load_sema);  	
   }
