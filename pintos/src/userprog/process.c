@@ -105,6 +105,7 @@ start_process (void *file_name_)
   else
     thread_current()->c->load = LOAD_FAIL;
 
+  sema_up(&thread_current()->c->load_sema);
 
   /* If load failed then quit. */
   if (!success) {
@@ -151,7 +152,9 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  lock_acquire(&file_lock);
   if(cur->executable) file_close(cur->executable);
+  lock_release(&file_lock);
   remove_child_processes();
 
   // Set exit value to true if the exit is due to a kill by kernel

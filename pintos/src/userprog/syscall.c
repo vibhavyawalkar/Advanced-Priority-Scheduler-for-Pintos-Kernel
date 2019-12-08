@@ -155,7 +155,7 @@ syscall_handler (struct intr_frame *f)
         get_arg(f, &arg[0], 3);
         check_valid_buffer((void*) arg[1], (unsigned int) arg[2]);
         arg[1] = user_to_kernel_ptr((const void*)arg[1]);
-        f->eax = write(arg[0], (const void*) arg[1], (unsigned int)arg[2]);
+        f->eax = write((int)arg[0], (const void*) arg[1], (unsigned int)arg[2]);
          break;
     }
     case SYS_SEEK:
@@ -201,10 +201,14 @@ exec(const char *cmd_line)
 {
   pid_t pid = process_execute(cmd_line);
   struct child *cp = get_child_process(pid);
-  if(cp == NULL) return ERROR;
+  if(cp == NULL) {
+  	return ERROR;
+  }
 
-  while(cp->load == NOT_LOADED)
-    sema_down(&cp->load_sema);
+  while(cp->load == NOT_LOADED){
+    sema_down(&cp->load_sema);  	
+  }
+
 
   if(cp->load == LOAD_FAIL)
   {
@@ -233,12 +237,13 @@ write(int fd, const void *buffer, unsigned int count) {
          putbuf(buffer, count);
          return count;
     }
+    file_lock_acquire();
     struct file_doc* fd_doc = retrieve_file(fd);
 	if (fd_doc == NULL){
+		file_lock_release();
 	 	return -1;
 	}
 
-	file_lock_acquire();
 	int write_len = file_write(fd_doc->p, buffer, count);
 	file_lock_release();
     return write_len;
@@ -258,8 +263,9 @@ open (const char *file){
 	file_lock_acquire();
 	struct file *return_file = filesys_open(file);
 	file_lock_release();
-	if (return_file == NULL)
+	if (return_file == NULL) {
 		return -1;
+	}
 
 	struct file_doc *fd_doc = malloc(sizeof(struct file_doc));
 	fd_doc->p = return_file;
@@ -286,11 +292,12 @@ read (int fd, void *buffer, unsigned size){
 	if (fd == 0){
 		return input_getc();
 	}
+	file_lock_acquire();
 	struct file_doc* fd_doc = retrieve_file(fd);
 	if (fd_doc == NULL){
+		file_lock_release();
 		return -1;
 	}
-	file_lock_acquire();
 	int read_len = file_read(fd_doc->p, buffer, size);
 	file_lock_release();
 	return read_len;
